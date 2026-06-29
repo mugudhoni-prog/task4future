@@ -1,6 +1,6 @@
 {
-  "name": "Sick of it",
-  "short_name": "Sick of it",
+  "name": "Punch — Daily Habit & Task Tracker",
+  "short_name": "Punch",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0F172A",
