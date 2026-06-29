@@ -59,14 +59,62 @@ function saveTasks(tasks: Task[]) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
 }
 
+// Default weekday routine (Mon-Fri). Seeded once on first launch.
+const SEED_FLAG = "punch-tracker-seeded-v1";
+const WEEKDAYS = [1, 2, 3, 4, 5];
+export const DEFAULT_WEEKDAY_TASKS: { title: string; emoji: string }[] = [
+  { title: "Gym 5:30 – 7:00", emoji: "🏋️" },
+  { title: "Post-gym meal", emoji: "🥚" },
+  { title: "Office attire", emoji: "👔" },
+  { title: "Office daily tasks", emoji: "💼" },
+  { title: "Brunch snack", emoji: "🥪" },
+  { title: "Update & think about passive income", emoji: "💡" },
+  { title: "2L water", emoji: "💧" },
+  { title: "Learn new things / Theory", emoji: "📘" },
+  { title: "Pre-eve snack", emoji: "🍎" },
+  { title: "Marketing course 1hr", emoji: "📈" },
+  { title: "3L water", emoji: "🚰" },
+  { title: "Evening walk", emoji: "🚶" },
+  { title: "Evening healthy oats", emoji: "🥣" },
+  { title: "Happy times for heart", emoji: "❤️" },
+  { title: "Podcast / book", emoji: "🎧" },
+  { title: "Dinner & light workout", emoji: "🍽️" },
+  { title: "Building Brandbuilder agency", emoji: "🚀" },
+  { title: "Ideas on passive income", emoji: "🧠" },
+  { title: "Movie / episode / game 1hr (optional)", emoji: "🎬" },
+];
+
+function maybeSeed(): Task[] {
+  if (typeof window === "undefined") return [];
+  const existing = loadTasks();
+  if (localStorage.getItem(SEED_FLAG)) return existing;
+  if (existing.length > 0) {
+    localStorage.setItem(SEED_FLAG, "1");
+    return existing;
+  }
+  const now = new Date().toISOString();
+  const seeded: Task[] = DEFAULT_WEEKDAY_TASKS.map((t) => ({
+    id: crypto.randomUUID(),
+    title: t.title,
+    emoji: t.emoji,
+    history: {},
+    days: WEEKDAYS,
+    createdAt: now,
+  }));
+  saveTasks(seeded);
+  localStorage.setItem(SEED_FLAG, "1");
+  return seeded;
+}
+
 export function useTasks() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
-    setTasks(loadTasks());
+    setTasks(maybeSeed());
     setLoaded(true);
   }, []);
+
 
   const persist = useCallback((next: Task[]) => {
     setTasks(next);
