@@ -192,8 +192,13 @@ function PunchApp() {
               <StreakCard streak={weekStats.streak} />
             </aside>
           </div>
+        ) : view === "food" ? (
+          <NutritionView />
         ) : (
-          <ReportsView weekStats={weekStats} monthStats={monthStats} tasks={tasks} />
+          <div className="space-y-6">
+            <ReportsView weekStats={weekStats} monthStats={monthStats} tasks={tasks} />
+            <NutritionReportSummary />
+          </div>
         )}
       </main>
 
