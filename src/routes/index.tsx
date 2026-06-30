@@ -50,7 +50,8 @@ function PunchApp() {
   const { tasks, loaded, addTask, toggle, remove } = useTasks();
   const [selectedISO, setSelectedISO] = useState<string>(todayISO());
   const [showAdd, setShowAdd] = useState(false);
-  const [view, setView] = useState<"day" | "reports">("day");
+  const [view, setView] = useState<"day" | "food" | "reports">("day");
+  const { goal } = useGoal();
   const [calMonth, setCalMonth] = useState(() => {
     const d = new Date();
     return new Date(d.getFullYear(), d.getMonth(), 1);
