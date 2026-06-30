@@ -15,6 +15,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { NutritionView, NutritionReportSummary } from "@/components/nutrition-view";
+import { useGoal } from "@/lib/nutrition-store";
 
 import {
   Check,
@@ -26,6 +28,7 @@ import {
   CalendarDays,
   ChevronLeft,
   ChevronRight,
+  Utensils,
 } from "lucide-react";
 
 export const Route = createFileRoute("/")({
@@ -47,7 +50,8 @@ function PunchApp() {
   const { tasks, loaded, addTask, toggle, remove } = useTasks();
   const [selectedISO, setSelectedISO] = useState<string>(todayISO());
   const [showAdd, setShowAdd] = useState(false);
-  const [view, setView] = useState<"day" | "reports">("day");
+  const [view, setView] = useState<"day" | "food" | "reports">("day");
+  const { goal } = useGoal();
   const [calMonth, setCalMonth] = useState(() => {
     const d = new Date();
     return new Date(d.getFullYear(), d.getMonth(), 1);
@@ -75,17 +79,29 @@ function PunchApp() {
               <Flame className="size-5 text-primary-foreground" />
             </div>
             <div>
-              <h1 className="text-xl font-bold">Punch</h1>
+              <h1 className="text-xl font-bold leading-tight">
+                {goal.name || "Punch"}{" "}
+                <span className="text-xs font-medium text-muted-foreground align-middle">
+                  · age {goal.age}
+                </span>
+              </h1>
               <p className="text-xs text-muted-foreground">Show up. Every day.</p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 sm:gap-2 flex-wrap justify-end">
             <Button
               variant={view === "day" ? "default" : "ghost"}
               size="sm"
               onClick={() => setView("day")}
             >
               <CalendarDays className="size-4" /> Days
+            </Button>
+            <Button
+              variant={view === "food" ? "default" : "ghost"}
+              size="sm"
+              onClick={() => setView("food")}
+            >
+              <Utensils className="size-4" /> Food
             </Button>
             <Button
               variant={view === "reports" ? "default" : "ghost"}
@@ -176,8 +192,13 @@ function PunchApp() {
               <StreakCard streak={weekStats.streak} />
             </aside>
           </div>
+        ) : view === "food" ? (
+          <NutritionView />
         ) : (
-          <ReportsView weekStats={weekStats} monthStats={monthStats} tasks={tasks} />
+          <div className="space-y-6">
+            <ReportsView weekStats={weekStats} monthStats={monthStats} tasks={tasks} />
+            <NutritionReportSummary />
+          </div>
         )}
       </main>
 
