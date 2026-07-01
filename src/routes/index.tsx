@@ -203,9 +203,12 @@ function PunchApp() {
           </div>
         ) : view === "food" ? (
           <NutritionView />
+        ) : view === "activity" ? (
+          <ActivityView />
         ) : (
           <div className="space-y-6">
             <ReportsView weekStats={weekStats} monthStats={monthStats} tasks={tasks} />
+            <ActivityReportSummary />
             <NutritionReportSummary />
           </div>
         )}
