@@ -30,6 +30,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Utensils,
+  Dumbbell,
 } from "lucide-react";
 
 export const Route = createFileRoute("/")({
