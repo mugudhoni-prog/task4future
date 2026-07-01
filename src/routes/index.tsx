@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { NutritionView, NutritionReportSummary } from "@/components/nutrition-view";
+import { ActivityView, ActivityReportSummary } from "@/components/activity-view";
 import { useGoal } from "@/lib/nutrition-store";
 
 import {
@@ -29,6 +30,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Utensils,
+  Dumbbell,
 } from "lucide-react";
 
 export const Route = createFileRoute("/")({
@@ -50,7 +52,7 @@ function PunchApp() {
   const { tasks, loaded, addTask, toggle, remove } = useTasks();
   const [selectedISO, setSelectedISO] = useState<string>(todayISO());
   const [showAdd, setShowAdd] = useState(false);
-  const [view, setView] = useState<"day" | "food" | "reports">("day");
+  const [view, setView] = useState<"day" | "food" | "activity" | "reports">("day");
   const { goal } = useGoal();
   const [calMonth, setCalMonth] = useState(() => {
     const d = new Date();
@@ -102,6 +104,13 @@ function PunchApp() {
               onClick={() => setView("food")}
             >
               <Utensils className="size-4" /> Food
+            </Button>
+            <Button
+              variant={view === "activity" ? "default" : "ghost"}
+              size="sm"
+              onClick={() => setView("activity")}
+            >
+              <Dumbbell className="size-4" /> Activity
             </Button>
             <Button
               variant={view === "reports" ? "default" : "ghost"}
@@ -194,9 +203,12 @@ function PunchApp() {
           </div>
         ) : view === "food" ? (
           <NutritionView />
+        ) : view === "activity" ? (
+          <ActivityView />
         ) : (
           <div className="space-y-6">
             <ReportsView weekStats={weekStats} monthStats={monthStats} tasks={tasks} />
+            <ActivityReportSummary />
             <NutritionReportSummary />
           </div>
         )}
