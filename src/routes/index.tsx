@@ -106,6 +106,13 @@ function PunchApp() {
               <Utensils className="size-4" /> Food
             </Button>
             <Button
+              variant={view === "activity" ? "default" : "ghost"}
+              size="sm"
+              onClick={() => setView("activity")}
+            >
+              <Dumbbell className="size-4" /> Activity
+            </Button>
+            <Button
               variant={view === "reports" ? "default" : "ghost"}
               size="sm"
               onClick={() => setView("reports")}
