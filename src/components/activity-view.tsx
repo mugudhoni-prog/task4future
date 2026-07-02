@@ -143,11 +143,13 @@ function AddActivityDialog({
   open,
   onOpenChange,
   weightKg,
+  gender,
   onAdd,
 }: {
   open: boolean;
   onOpenChange: (b: boolean) => void;
   weightKg: number;
+  gender: "male" | "female";
   onAdd: (a: Activity, minutes: number) => void;
 }) {
   const [q, setQ] = useState("");
@@ -163,8 +165,9 @@ function AddActivityDialog({
   }, [q, cat]);
 
   const preview = selected
-    ? computeCaloriesBurned(selected.met, minutes, weightKg)
+    ? computeCaloriesBurned(selected.met, minutes, weightKg, gender)
     : 0;
+
 
   const submit = () => {
     if (!selected || minutes <= 0) return;
