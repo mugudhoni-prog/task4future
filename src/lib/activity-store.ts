@@ -129,10 +129,18 @@ function saveEntries(e: ActivityEntry[]) {
   localStorage.setItem(LS_ENTRIES, JSON.stringify(e));
 }
 
-// Calories burned = MET × weight(kg) × time(hours)
-export function computeCaloriesBurned(met: number, minutes: number, weightKg: number) {
-  return +(met * weightKg * (minutes / 60)).toFixed(0);
+// Calories burned = MET × weight(kg) × time(hours) × gender factor
+// Females have ~10% lower burn at equal weight/MET due to body-composition differences.
+export function computeCaloriesBurned(
+  met: number,
+  minutes: number,
+  weightKg: number,
+  gender: "male" | "female" = "male",
+) {
+  const factor = gender === "female" ? 0.9 : 1;
+  return +(met * weightKg * (minutes / 60) * factor).toFixed(0);
 }
+
 
 export function useActivityEntries() {
   const [entries, setEntries] = useState<ActivityEntry[]>([]);
