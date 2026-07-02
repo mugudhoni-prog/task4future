@@ -247,14 +247,15 @@ const FOOD_KEY = "punch-food-entries-v1";
 const GOAL_KEY = "punch-goal-v1";
 
 export const DEFAULT_GOAL: Goal = {
-  name: "Mugundan",
-  age: 23,
+  name: "",
+  age: 0,
   heightCm: 175,
   currentKg: 65,
   targetKg: 72,
   goalType: "gain",
   activity: 1.55,
 };
+
 
 function loadEntries(): FoodEntry[] {
   if (typeof window === "undefined") return [];
