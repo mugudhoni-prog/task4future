@@ -82,13 +82,16 @@ function PunchApp() {
             </div>
             <div>
               <h1 className="text-xl font-bold leading-tight">
-                {goal.name || "Punch"}{" "}
-                <span className="text-xs font-medium text-muted-foreground align-middle">
-                  · age {goal.age}
-                </span>
+                {goal.name || "Punch"}
+                {goal.age > 0 && (
+                  <span className="text-xs font-medium text-muted-foreground align-middle">
+                    {" "}· age {goal.age}
+                  </span>
+                )}
               </h1>
               <p className="text-xs text-muted-foreground">Show up. Every day.</p>
             </div>
+
           </div>
           <div className="flex items-center gap-1 sm:gap-2 flex-wrap justify-end">
             <Button
@@ -124,8 +127,11 @@ function PunchApp() {
       </header>
 
       <main className="max-w-6xl mx-auto px-4 sm:px-6 py-6 space-y-6">
+        {view === "day" && (!goal.name || goal.age <= 0) && <ProfileSetupCard />}
+
         {/* Missed-yesterday reminder */}
         {view === "day" && missed.length > 0 && (
+
           <div className="rounded-2xl border border-accent/30 p-5 relative overflow-hidden"
                style={{ background: "var(--gradient-hero)" }}>
             <div className="flex items-start gap-3">
@@ -218,6 +224,50 @@ function PunchApp() {
     </div>
   );
 }
+
+function ProfileSetupCard() {
+  const { goal, update } = useGoal();
+  const [name, setName] = useState(goal.name || "");
+  const [age, setAge] = useState<string>(goal.age > 0 ? String(goal.age) : "");
+  const save = () => {
+    const a = parseInt(age, 10);
+    if (!name.trim() || !a || a <= 0) return;
+    update({ name: name.trim(), age: a });
+  };
+  return (
+    <div className="rounded-2xl border border-primary/30 p-5 relative overflow-hidden"
+         style={{ background: "var(--gradient-hero)" }}>
+      <div className="flex items-start gap-3">
+        <Sparkles className="size-5 text-primary shrink-0 mt-0.5" />
+        <div className="flex-1">
+          <p className="text-sm font-semibold">Welcome to Punch — let's set up your profile</p>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Your data stays on this device. Add to Home Screen to keep it as your personal account.
+          </p>
+          <div className="flex flex-wrap gap-2 mt-3">
+            <Input
+              placeholder="Your name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="max-w-[180px]"
+            />
+            <Input
+              type="number"
+              placeholder="Age"
+              value={age}
+              onChange={(e) => setAge(e.target.value)}
+              className="max-w-[100px]"
+            />
+            <Button onClick={save} disabled={!name.trim() || !age}>
+              Save
+            </Button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 
 function DayProgress({ tasks, dateISO }: { tasks: Task[]; dateISO: string }) {
   const done = tasks.filter((t) => t.history[dateISO]).length;
