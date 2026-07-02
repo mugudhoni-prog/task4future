@@ -127,8 +127,11 @@ function PunchApp() {
       </header>
 
       <main className="max-w-6xl mx-auto px-4 sm:px-6 py-6 space-y-6">
+        {view === "day" && (!goal.name || goal.age <= 0) && <ProfileSetupCard />}
+
         {/* Missed-yesterday reminder */}
         {view === "day" && missed.length > 0 && (
+
           <div className="rounded-2xl border border-accent/30 p-5 relative overflow-hidden"
                style={{ background: "var(--gradient-hero)" }}>
             <div className="flex items-start gap-3">
