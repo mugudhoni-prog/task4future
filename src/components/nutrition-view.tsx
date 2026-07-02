@@ -415,6 +415,24 @@ function GoalDialog({
           <Field label="Name">
             <Input value={g.name} onChange={(e) => setG({ ...g, name: e.target.value })} />
           </Field>
+          <Field label="Gender">
+            <div className="grid grid-cols-2 gap-2">
+              {(["male", "female"] as const).map((gd) => (
+                <button
+                  key={gd}
+                  onClick={() => setG({ ...g, gender: gd })}
+                  className={`py-2 rounded-lg text-sm font-medium border capitalize transition-all ${
+                    g.gender === gd
+                      ? "bg-primary text-primary-foreground border-primary"
+                      : "border-border hover:border-primary/50"
+                  }`}
+                >
+                  {gd}
+                </button>
+              ))}
+            </div>
+          </Field>
+
           <div className="grid grid-cols-2 gap-3">
             <Field label="Age">
               <Input

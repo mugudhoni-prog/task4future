@@ -353,9 +353,12 @@ export type FoodEntry = {
   createdAt: string;
 };
 
+export type Gender = "male" | "female";
+
 export type Goal = {
   name: string;
   age: number;
+  gender: Gender;
   heightCm: number;
   currentKg: number;
   targetKg: number;
@@ -369,12 +372,14 @@ const GOAL_KEY = "punch-goal-v1";
 export const DEFAULT_GOAL: Goal = {
   name: "",
   age: 0,
+  gender: "male",
   heightCm: 175,
   currentKg: 65,
   targetKg: 72,
   goalType: "gain",
   activity: 1.55,
 };
+
 
 
 function loadEntries(): FoodEntry[] {
@@ -432,9 +437,11 @@ export function sumMacros(items: Macros[]): Macros {
   );
 }
 
-// Mifflin-St Jeor BMR (assuming male)
+// Mifflin-St Jeor BMR — gender aware
 export function computeTargets(g: Goal) {
-  const bmr = 10 * g.currentKg + 6.25 * g.heightCm - 5 * g.age + 5;
+  const genderConst = g.gender === "female" ? -161 : 5;
+  const bmr = 10 * g.currentKg + 6.25 * g.heightCm - 5 * g.age + genderConst;
+
   const tdee = bmr * g.activity;
   const adjust = g.goalType === "gain" ? 400 : g.goalType === "lose" ? -400 : 0;
   const calories = Math.round(tdee + adjust);

@@ -122,8 +122,9 @@ export function ActivityView() {
         open={openAdd}
         onOpenChange={setOpenAdd}
         weightKg={goal.currentKg}
+        gender={goal.gender}
         onAdd={(a, minutes) => {
-          const kcal = computeCaloriesBurned(a.met, minutes, goal.currentKg);
+          const kcal = computeCaloriesBurned(a.met, minutes, goal.currentKg, goal.gender);
           add({
             dateISO: today,
             activityName: a.name,
@@ -133,6 +134,7 @@ export function ActivityView() {
           });
         }}
       />
+
     </div>
   );
 }
@@ -141,11 +143,13 @@ function AddActivityDialog({
   open,
   onOpenChange,
   weightKg,
+  gender,
   onAdd,
 }: {
   open: boolean;
   onOpenChange: (b: boolean) => void;
   weightKg: number;
+  gender: "male" | "female";
   onAdd: (a: Activity, minutes: number) => void;
 }) {
   const [q, setQ] = useState("");
@@ -161,8 +165,9 @@ function AddActivityDialog({
   }, [q, cat]);
 
   const preview = selected
-    ? computeCaloriesBurned(selected.met, minutes, weightKg)
+    ? computeCaloriesBurned(selected.met, minutes, weightKg, gender)
     : 0;
+
 
   const submit = () => {
     if (!selected || minutes <= 0) return;
@@ -203,8 +208,9 @@ function AddActivityDialog({
                     <p className="text-[11px] text-muted-foreground">MET {a.met} · {a.category}</p>
                   </div>
                   <span className="text-xs text-muted-foreground">
-                    ~{computeCaloriesBurned(a.met, 30, weightKg)} kcal/30m
+                    ~{computeCaloriesBurned(a.met, 30, weightKg, gender)} kcal/30m
                   </span>
+
                 </button>
               ))}
               {filtered.length === 0 && (
