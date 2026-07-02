@@ -122,8 +122,9 @@ export function ActivityView() {
         open={openAdd}
         onOpenChange={setOpenAdd}
         weightKg={goal.currentKg}
+        gender={goal.gender}
         onAdd={(a, minutes) => {
-          const kcal = computeCaloriesBurned(a.met, minutes, goal.currentKg);
+          const kcal = computeCaloriesBurned(a.met, minutes, goal.currentKg, goal.gender);
           add({
             dateISO: today,
             activityName: a.name,
@@ -133,6 +134,7 @@ export function ActivityView() {
           });
         }}
       />
+
     </div>
   );
 }
