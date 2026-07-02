@@ -353,9 +353,12 @@ export type FoodEntry = {
   createdAt: string;
 };
 
+export type Gender = "male" | "female";
+
 export type Goal = {
   name: string;
   age: number;
+  gender: Gender;
   heightCm: number;
   currentKg: number;
   targetKg: number;
@@ -369,12 +372,14 @@ const GOAL_KEY = "punch-goal-v1";
 export const DEFAULT_GOAL: Goal = {
   name: "",
   age: 0,
+  gender: "male",
   heightCm: 175,
   currentKg: 65,
   targetKg: 72,
   goalType: "gain",
   activity: 1.55,
 };
+
 
 
 function loadEntries(): FoodEntry[] {
