@@ -229,10 +229,11 @@ function ProfileSetupCard() {
   const { goal, update } = useGoal();
   const [name, setName] = useState(goal.name || "");
   const [age, setAge] = useState<string>(goal.age > 0 ? String(goal.age) : "");
+  const [gender, setGender] = useState<"male" | "female">(goal.gender || "male");
   const save = () => {
     const a = parseInt(age, 10);
     if (!name.trim() || !a || a <= 0) return;
-    update({ name: name.trim(), age: a });
+    update({ name: name.trim(), age: a, gender });
   };
   return (
     <div className="rounded-2xl border border-primary/30 p-5 relative overflow-hidden"
@@ -258,6 +259,22 @@ function ProfileSetupCard() {
               onChange={(e) => setAge(e.target.value)}
               className="max-w-[100px]"
             />
+            <div className="flex gap-1.5">
+              {(["male", "female"] as const).map((gd) => (
+                <button
+                  key={gd}
+                  type="button"
+                  onClick={() => setGender(gd)}
+                  className={`px-3 rounded-md text-xs font-medium border capitalize transition-all ${
+                    gender === gd
+                      ? "bg-primary text-primary-foreground border-primary"
+                      : "border-border hover:border-primary/50"
+                  }`}
+                >
+                  {gd}
+                </button>
+              ))}
+            </div>
             <Button onClick={save} disabled={!name.trim() || !age}>
               Save
             </Button>
@@ -267,6 +284,7 @@ function ProfileSetupCard() {
     </div>
   );
 }
+
 
 
 function DayProgress({ tasks, dateISO }: { tasks: Task[]; dateISO: string }) {
