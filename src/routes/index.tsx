@@ -82,13 +82,16 @@ function PunchApp() {
             </div>
             <div>
               <h1 className="text-xl font-bold leading-tight">
-                {goal.name || "Punch"}{" "}
-                <span className="text-xs font-medium text-muted-foreground align-middle">
-                  · age {goal.age}
-                </span>
+                {goal.name || "Punch"}
+                {goal.age > 0 && (
+                  <span className="text-xs font-medium text-muted-foreground align-middle">
+                    {" "}· age {goal.age}
+                  </span>
+                )}
               </h1>
               <p className="text-xs text-muted-foreground">Show up. Every day.</p>
             </div>
+
           </div>
           <div className="flex items-center gap-1 sm:gap-2 flex-wrap justify-end">
             <Button
