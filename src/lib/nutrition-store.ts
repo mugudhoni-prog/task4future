@@ -313,7 +313,7 @@ export const FOOD_DB: Food[] = [
   { name: "Chicken 65", emoji: "🍗", per100: { calories: 255, protein: 22, carbs: 8, fiber: 1, sugar: 1 }, serving: 150 },
   { name: "Chicken chukka", emoji: "🍗", per100: { calories: 245, protein: 24, carbs: 5, fiber: 1, sugar: 1 }, serving: 150 },
   { name: "Nethili fry (anchovy)", emoji: "🐟", per100: { calories: 220, protein: 22, carbs: 5, fiber: 0.5, sugar: 0 }, serving: 100 },
-  { name: "Prawn masala", emoji: "🍤", p per100: { calories: 175, protein: 20, carbs: 5, fiber: 1, sugar: 2 }, serving: 150 },
+  { name: "Prawn masala", emoji: "🍤", per100: { calories: 175, protein: 20, carbs: 5, fiber: 1, sugar: 2 }, serving: 150 },
   { name: "Prawn fry", emoji: "🍤", per100: { calories: 190, protein: 22, carbs: 3, fiber: 0.5, sugar: 1 }, serving: 150 },
   { name: "Crab masala", emoji: "🦀", per100: { calories: 165, protein: 18, carbs: 4, fiber: 0.5, sugar: 1 }, serving: 200 },
   { name: "Egg curry", emoji: "🍳", per100: { calories: 150, protein: 9, carbs: 6, fiber: 1, sugar: 3 }, serving: 200 },
