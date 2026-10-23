@@ -33,7 +33,7 @@ import {
   Dumbbell,
 } from "lucide-react";
 
-export const Route = createFileRoute("/")({
+export const Route = createFileRoute("/_authenticated/")({
   head: () => ({
     meta: [
       { title: "Punch — Daily Habit & Task Tracker" },

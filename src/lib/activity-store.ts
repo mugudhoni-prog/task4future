@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { todayISO, toISO, addDays } from "./tracker-store";
+import { supabase } from "@/integrations/supabase/client";
 
 export type Activity = {
   name: string;
@@ -142,29 +143,117 @@ export function computeCaloriesBurned(
 }
 
 
+type ActivityRow = {
+  id: string;
+  user_id: string;
+  date_iso: string;
+  activity_name: string;
+  emoji: string | null;
+  minutes: number;
+  calories_burned: number;
+  created_at: string;
+};
+
+function rowToEntry(r: ActivityRow): ActivityEntry {
+  return {
+    id: r.id,
+    dateISO: r.date_iso,
+    activityName: r.activity_name,
+    emoji: r.emoji ?? "🏃",
+    minutes: Number(r.minutes),
+    caloriesBurned: Number(r.calories_burned),
+    createdAt: r.created_at,
+  };
+}
+
+// One-time per account: copy this device's existing activity logs into the cloud.
+const activityMigratePromises = new Map<string, Promise<void>>();
+function ensureActivityMigrated(userId: string): Promise<void> {
+  let p = activityMigratePromises.get(userId);
+  if (!p) {
+    p = (async () => {
+      const { count } = await supabase
+        .from("activity_entries")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", userId);
+      if ((count ?? 0) > 0) return;
+      const local = loadEntries();
+      if (local.length === 0) return;
+      await supabase.from("activity_entries").insert(
+        local.map((e) => ({
+          id: e.id,
+          user_id: userId,
+          date_iso: e.dateISO,
+          activity_name: e.activityName,
+          emoji: e.emoji,
+          minutes: e.minutes,
+          calories_burned: e.caloriesBurned,
+          created_at: e.createdAt,
+        })),
+      );
+    })();
+    activityMigratePromises.set(userId, p);
+  }
+  return p;
+}
+
 export function useActivityEntries() {
   const [entries, setEntries] = useState<ActivityEntry[]>([]);
   const [loaded, setLoaded] = useState(false);
+
   useEffect(() => {
-    setEntries(loadEntries());
-    setLoaded(true);
+    let active = true;
+    (async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) {
+        if (active) setLoaded(true);
+        return;
+      }
+      await ensureActivityMigrated(user.id);
+      const { data } = await supabase
+        .from("activity_entries")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("created_at");
+      if (!active) return;
+      setEntries(((data ?? []) as ActivityRow[]).map(rowToEntry));
+      setLoaded(true);
+    })();
+    return () => {
+      active = false;
+    };
   }, []);
 
   const add = useCallback((entry: Omit<ActivityEntry, "id" | "createdAt">) => {
-    const e: ActivityEntry = {
-      ...entry,
-      id: crypto.randomUUID(),
-      createdAt: new Date().toISOString(),
-    };
-    const next = [...loadEntries(), e];
-    saveEntries(next);
-    setEntries(next);
+    void (async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) return;
+      const e: ActivityEntry = {
+        ...entry,
+        id: crypto.randomUUID(),
+        createdAt: new Date().toISOString(),
+      };
+      setEntries((prev) => [...prev, e]);
+      await supabase.from("activity_entries").insert({
+        id: e.id,
+        user_id: user.id,
+        date_iso: e.dateISO,
+        activity_name: e.activityName,
+        emoji: e.emoji,
+        minutes: e.minutes,
+        calories_burned: e.caloriesBurned,
+        created_at: e.createdAt,
+      });
+    })();
   }, []);
 
   const remove = useCallback((id: string) => {
-    const next = loadEntries().filter((e) => e.id !== id);
-    saveEntries(next);
-    setEntries(next);
+    setEntries((prev) => prev.filter((e) => e.id !== id));
+    void supabase.from("activity_entries").delete().eq("id", id);
   }, []);
 
   return { entries, loaded, add, remove };
