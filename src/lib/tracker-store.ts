@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
 export type Task = {
   id: string;
@@ -54,13 +55,8 @@ function loadTasks(): Task[] {
   }
 }
 
-function saveTasks(tasks: Task[]) {
-  if (typeof window === "undefined") return;
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
-}
 
-// Default weekday routine (Mon-Fri). Seeded once on first launch.
-const SEED_FLAG = "punch-tracker-seeded-v1";
+// Default weekday routine (Mon-Fri), seeded into the user's cloud account on first sign-in.
 const WEEKDAYS = [1, 2, 3, 4, 5];
 export const DEFAULT_WEEKDAY_TASKS: { title: string; emoji: string }[] = [
   { title: "Gym 5:30 – 7:00", emoji: "🏋️" },
@@ -84,26 +80,67 @@ export const DEFAULT_WEEKDAY_TASKS: { title: string; emoji: string }[] = [
   { title: "Movie / episode / game 1hr (optional)", emoji: "🎬" },
 ];
 
-function maybeSeed(): Task[] {
-  if (typeof window === "undefined") return [];
-  const existing = loadTasks();
-  if (localStorage.getItem(SEED_FLAG)) return existing;
-  if (existing.length > 0) {
-    localStorage.setItem(SEED_FLAG, "1");
-    return existing;
+type TaskRow = {
+  id: string;
+  user_id: string;
+  title: string;
+  emoji: string | null;
+  history: Record<string, boolean>;
+  days: number[];
+  created_at: string;
+};
+
+function rowToTask(r: TaskRow): Task {
+  return {
+    id: r.id,
+    title: r.title,
+    emoji: r.emoji ?? "✨",
+    history: r.history ?? {},
+    days: r.days ?? [],
+    createdAt: r.created_at,
+  };
+}
+
+// One-time per account: copy this device's existing tasks into the cloud, or
+// seed the default weekday routine for a brand-new account.
+const seedPromises = new Map<string, Promise<void>>();
+function ensureTasksForUser(userId: string): Promise<void> {
+  let p = seedPromises.get(userId);
+  if (!p) {
+    p = (async () => {
+      const { count } = await supabase
+        .from("tasks")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", userId);
+      if ((count ?? 0) > 0) return;
+      const local = loadTasks();
+      const seed: Task[] = local.length
+        ? local
+        : DEFAULT_WEEKDAY_TASKS.map((t) => ({
+            id: crypto.randomUUID(),
+            title: t.title,
+            emoji: t.emoji,
+            history: {},
+            days: WEEKDAYS,
+            createdAt: new Date().toISOString(),
+          }));
+      await supabase
+        .from("tasks")
+        .insert(
+          seed.map((t) => ({
+            id: t.id,
+            user_id: userId,
+            title: t.title,
+            emoji: t.emoji,
+            history: t.history,
+            days: t.days,
+            created_at: t.createdAt,
+          })),
+        );
+    })();
+    seedPromises.set(userId, p);
   }
-  const now = new Date().toISOString();
-  const seeded: Task[] = DEFAULT_WEEKDAY_TASKS.map((t) => ({
-    id: crypto.randomUUID(),
-    title: t.title,
-    emoji: t.emoji,
-    history: {},
-    days: WEEKDAYS,
-    createdAt: now,
-  }));
-  saveTasks(seeded);
-  localStorage.setItem(SEED_FLAG, "1");
-  return seeded;
+  return p;
 }
 
 export function useTasks() {
@@ -111,18 +148,36 @@ export function useTasks() {
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
-    setTasks(maybeSeed());
-    setLoaded(true);
+    let active = true;
+    (async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) {
+        if (active) setLoaded(true);
+        return;
+      }
+      await ensureTasksForUser(user.id);
+      const { data } = await supabase
+        .from("tasks")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("created_at");
+      if (!active) return;
+      setTasks(((data ?? []) as TaskRow[]).map(rowToTask));
+      setLoaded(true);
+    })();
+    return () => {
+      active = false;
+    };
   }, []);
 
-
-  const persist = useCallback((next: Task[]) => {
-    setTasks(next);
-    saveTasks(next);
-  }, []);
-
-  const addTask = useCallback(
-    (title: string, emoji: string, days: number[]) => {
+  const addTask = useCallback((title: string, emoji: string, days: number[]) => {
+    void (async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) return;
       const t: Task = {
         id: crypto.randomUUID(),
         title: title.trim(),
@@ -131,29 +186,34 @@ export function useTasks() {
         days,
         createdAt: new Date().toISOString(),
       };
-      persist([...loadTasks(), t]);
-    },
-    [persist],
-  );
+      setTasks((prev) => [...prev, t]);
+      await supabase.from("tasks").insert({
+        id: t.id,
+        user_id: user.id,
+        title: t.title,
+        emoji: t.emoji,
+        history: {},
+        days,
+        created_at: t.createdAt,
+      });
+    })();
+  }, []);
 
   const toggle = useCallback(
     (id: string, dateISO: string) => {
-      const next = loadTasks().map((t) =>
-        t.id === id
-          ? { ...t, history: { ...t.history, [dateISO]: !t.history[dateISO] } }
-          : t,
-      );
-      persist(next);
+      const row = tasks.find((t) => t.id === id);
+      if (!row) return;
+      const history = { ...row.history, [dateISO]: !row.history[dateISO] };
+      setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, history } : t)));
+      void supabase.from("tasks").update({ history }).eq("id", id);
     },
-    [persist],
+    [tasks],
   );
 
-  const remove = useCallback(
-    (id: string) => {
-      persist(loadTasks().filter((t) => t.id !== id));
-    },
-    [persist],
-  );
+  const remove = useCallback((id: string) => {
+    setTasks((prev) => prev.filter((t) => t.id !== id));
+    void supabase.from("tasks").delete().eq("id", id);
+  }, []);
 
   return { tasks, loaded, addTask, toggle, remove };
 }

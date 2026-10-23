@@ -14,7 +14,147 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      activity_entries: {
+        Row: {
+          activity_name: string
+          calories_burned: number
+          created_at: string
+          date_iso: string
+          emoji: string | null
+          id: string
+          minutes: number
+          user_id: string
+        }
+        Insert: {
+          activity_name: string
+          calories_burned?: number
+          created_at?: string
+          date_iso: string
+          emoji?: string | null
+          id: string
+          minutes?: number
+          user_id: string
+        }
+        Update: {
+          activity_name?: string
+          calories_burned?: number
+          created_at?: string
+          date_iso?: string
+          emoji?: string | null
+          id?: string
+          minutes?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
+      food_entries: {
+        Row: {
+          created_at: string
+          date_iso: string
+          emoji: string | null
+          grams: number
+          id: string
+          macros: Json
+          name: string
+          unit: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          date_iso: string
+          emoji?: string | null
+          grams?: number
+          id: string
+          macros?: Json
+          name: string
+          unit?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          date_iso?: string
+          emoji?: string | null
+          grams?: number
+          id?: string
+          macros?: Json
+          name?: string
+          unit?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          activity_level: number
+          age: number
+          created_at: string
+          current_kg: number
+          gender: string
+          goal_type: string
+          height_cm: number
+          id: string
+          name: string
+          target_kg: number
+          updated_at: string
+        }
+        Insert: {
+          activity_level?: number
+          age?: number
+          created_at?: string
+          current_kg?: number
+          gender?: string
+          goal_type?: string
+          height_cm?: number
+          id: string
+          name?: string
+          target_kg?: number
+          updated_at?: string
+        }
+        Update: {
+          activity_level?: number
+          age?: number
+          created_at?: string
+          current_kg?: number
+          gender?: string
+          goal_type?: string
+          height_cm?: number
+          id?: string
+          name?: string
+          target_kg?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      tasks: {
+        Row: {
+          created_at: string
+          days: number[]
+          emoji: string | null
+          history: Json
+          id: string
+          title: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          days?: number[]
+          emoji?: string | null
+          history?: Json
+          id: string
+          title: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          days?: number[]
+          emoji?: string | null
+          history?: Json
+          id?: string
+          title?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

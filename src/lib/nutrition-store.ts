@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
+import { supabase } from "@/integrations/supabase/client";
 import { todayISO, toISO, fromISO, addDays } from "./tracker-store";
 
 export type Macros = {
@@ -498,46 +499,223 @@ export function computeTargets(g: Goal) {
   return { calories, protein, carbs, fiber, sugar, bmr: Math.round(bmr), tdee: Math.round(tdee) };
 }
 
+type ProfileRow = {
+  id: string;
+  name: string;
+  age: number;
+  gender: string;
+  height_cm: number;
+  current_kg: number;
+  target_kg: number;
+  goal_type: string;
+  activity_level: number;
+};
+
+function profileToGoal(r: ProfileRow): Goal {
+  return {
+    name: r.name ?? "",
+    age: r.age ?? 0,
+    gender: r.gender === "female" ? "female" : "male",
+    heightCm: Number(r.height_cm ?? 175),
+    currentKg: Number(r.current_kg ?? 65),
+    targetKg: Number(r.target_kg ?? 72),
+    goalType: (r.goal_type as Goal["goalType"]) ?? "gain",
+    activity: Number(r.activity_level ?? 1.55),
+  };
+}
+
+function goalToProfile(g: Goal) {
+  return {
+    name: g.name,
+    age: g.age,
+    gender: g.gender,
+    height_cm: g.heightCm,
+    current_kg: g.currentKg,
+    target_kg: g.targetKg,
+    goal_type: g.goalType,
+    activity_level: g.activity,
+    updated_at: new Date().toISOString(),
+  };
+}
+
+// One-time per account: if the cloud profile is still blank, copy this
+// device's saved profile (name, age, goal) into it.
+const goalMigratePromises = new Map<string, Promise<void>>();
+function ensureGoalMigrated(userId: string): Promise<void> {
+  let p = goalMigratePromises.get(userId);
+  if (!p) {
+    p = (async () => {
+      const { data } = await supabase.from("profiles").select("*").eq("id", userId).maybeSingle();
+      if (!data) return;
+      const row = data as ProfileRow;
+      if (row.name || row.age > 0) return; // already has a real profile
+      const local = loadGoal();
+      if (local.name || local.age > 0) {
+        await supabase.from("profiles").update(goalToProfile(local)).eq("id", userId);
+      }
+    })();
+    goalMigratePromises.set(userId, p);
+  }
+  return p;
+}
+
 export function useGoal() {
   const [goal, setGoal] = useState<Goal>(DEFAULT_GOAL);
   const [loaded, setLoaded] = useState(false);
+
   useEffect(() => {
-    setGoal(loadGoal());
-    setLoaded(true);
+    let active = true;
+    (async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) {
+        if (active) setLoaded(true);
+        return;
+      }
+      await ensureGoalMigrated(user.id);
+      const { data } = await supabase.from("profiles").select("*").eq("id", user.id).maybeSingle();
+      if (!active) return;
+      if (data) setGoal(profileToGoal(data as ProfileRow));
+      setLoaded(true);
+    })();
+    return () => {
+      active = false;
+    };
   }, []);
+
   const update = useCallback((patch: Partial<Goal>) => {
     setGoal((prev) => {
       const next = { ...prev, ...patch };
-      saveGoal(next);
+      void (async () => {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        if (!user) return;
+        await supabase.from("profiles").upsert({ id: user.id, ...goalToProfile(next) });
+      })();
       return next;
     });
   }, []);
+
   return { goal, loaded, update };
+}
+
+type FoodRow = {
+  id: string;
+  user_id: string;
+  date_iso: string;
+  name: string;
+  emoji: string | null;
+  grams: number;
+  unit: string;
+  macros: Macros;
+  created_at: string;
+};
+
+function rowToFoodEntry(r: FoodRow): FoodEntry {
+  return {
+    id: r.id,
+    dateISO: r.date_iso,
+    name: r.name,
+    emoji: r.emoji ?? "🍽️",
+    grams: Number(r.grams),
+    unit: r.unit === "ml" ? "ml" : "g",
+    macros: r.macros ?? emptyMacros(),
+    createdAt: r.created_at,
+  };
+}
+
+// One-time per account: copy this device's existing food logs into the cloud.
+const foodMigratePromises = new Map<string, Promise<void>>();
+function ensureFoodMigrated(userId: string): Promise<void> {
+  let p = foodMigratePromises.get(userId);
+  if (!p) {
+    p = (async () => {
+      const { count } = await supabase
+        .from("food_entries")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", userId);
+      if ((count ?? 0) > 0) return;
+      const local = loadEntries();
+      if (local.length === 0) return;
+      await supabase.from("food_entries").insert(
+        local.map((e) => ({
+          id: e.id,
+          user_id: userId,
+          date_iso: e.dateISO,
+          name: e.name,
+          emoji: e.emoji,
+          grams: e.grams,
+          unit: e.unit,
+          macros: e.macros,
+          created_at: e.createdAt,
+        })),
+      );
+    })();
+    foodMigratePromises.set(userId, p);
+  }
+  return p;
 }
 
 export function useFoodEntries() {
   const [entries, setEntries] = useState<FoodEntry[]>([]);
   const [loaded, setLoaded] = useState(false);
+
   useEffect(() => {
-    setEntries(loadEntries());
-    setLoaded(true);
+    let active = true;
+    (async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) {
+        if (active) setLoaded(true);
+        return;
+      }
+      await ensureFoodMigrated(user.id);
+      const { data } = await supabase
+        .from("food_entries")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("created_at");
+      if (!active) return;
+      setEntries(((data ?? []) as FoodRow[]).map(rowToFoodEntry));
+      setLoaded(true);
+    })();
+    return () => {
+      active = false;
+    };
   }, []);
 
   const add = useCallback((entry: Omit<FoodEntry, "id" | "createdAt">) => {
-    const e: FoodEntry = {
-      ...entry,
-      id: crypto.randomUUID(),
-      createdAt: new Date().toISOString(),
-    };
-    const next = [...loadEntries(), e];
-    saveEntries(next);
-    setEntries(next);
+    void (async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) return;
+      const e: FoodEntry = {
+        ...entry,
+        id: crypto.randomUUID(),
+        createdAt: new Date().toISOString(),
+      };
+      setEntries((prev) => [...prev, e]);
+      await supabase.from("food_entries").insert({
+        id: e.id,
+        user_id: user.id,
+        date_iso: e.dateISO,
+        name: e.name,
+        emoji: e.emoji,
+        grams: e.grams,
+        unit: e.unit,
+        macros: e.macros,
+        created_at: e.createdAt,
+      });
+    })();
   }, []);
 
   const remove = useCallback((id: string) => {
-    const next = loadEntries().filter((e) => e.id !== id);
-    saveEntries(next);
-    setEntries(next);
+    setEntries((prev) => prev.filter((e) => e.id !== id));
+    void supabase.from("food_entries").delete().eq("id", id);
   }, []);
 
   return { entries, loaded, add, remove };
