@@ -94,7 +94,7 @@ export const FOOD_DB: Food[] = [
   { name: "Quesadilla (cheese)", emoji: "🫓", per100: { calories: 290, protein: 12, carbs: 26, fiber: 2, sugar: 2.5 }, serving: 180 },
   { name: "Tacos (2, chicken)", emoji: "🌮", per100: { calories: 210, protein: 10, carbs: 22, fiber: 3, sugar: 2 }, serving: 220 },
   { name: "Nachos with cheese", emoji: "🧀", per100: { calories: 306, protein: 8, carbs: 34, fiber: 3, sugar: 2 }, serving: 150 },
-  { name: "Kathu roll (chicken)", emoji: "🌯", per100: { calories: 220, protein: 10, carbs: 27, fiber: 2, sugar: 2 }, serving: 250 },
+  { name: "Kathi roll (chicken)", emoji: "🌯", per100: { calories: 220, protein: 10, carbs: 27, fiber: 2, sugar: 2 }, serving: 250 },
   { name: "Veg kathu roll", emoji: "🌯", per100: { calories: 195, protein: 6, carbs: 30, fiber: 3, sugar: 3 }, serving: 250 },
 
   // South Indian
