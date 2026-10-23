@@ -1,5 +1,13 @@
 {
   "version": "7",
   "dialect": "postgresql",
-  "entries": []
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1792736554940,
+      "tag": "0000_auth_accounts_and_tracking_tables",
+      "breakpoints": true
+    }
+  ]
 }
