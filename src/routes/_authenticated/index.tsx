@@ -1,5 +1,6 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
 import {
   useTasks,
   toISO,
@@ -31,6 +32,7 @@ import {
   ChevronRight,
   Utensils,
   Dumbbell,
+  LogOut,
 } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/")({
@@ -40,6 +42,8 @@ export const Route = createFileRoute("/_authenticated/")({
       { name: "description", content: "Punch in your daily duties. Track streaks, get reminders for missed tasks, and weekly/monthly reports on your consistency." },
       { property: "og:title", content: "Punch — Daily Habit & Task Tracker" },
       { property: "og:description", content: "Track daily tasks, build streaks, stay consistent." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
     ],
   }),
   component: PunchApp,
@@ -49,6 +53,7 @@ const DAY_LABELS = ["S", "M", "T", "W", "T", "F", "S"];
 const DAY_FULL = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 function PunchApp() {
+  const navigate = useNavigate();
   const { tasks, loaded, addTask, toggle, remove } = useTasks();
   const [selectedISO, setSelectedISO] = useState<string>(todayISO());
   const [showAdd, setShowAdd] = useState(false);
@@ -121,6 +126,17 @@ function PunchApp() {
               onClick={() => setView("reports")}
             >
               <TrendingUp className="size-4" /> Reports
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={async () => {
+                await supabase.auth.signOut();
+                navigate({ to: "/auth", replace: true });
+              }}
+              aria-label="Sign out"
+            >
+              <LogOut className="size-4" />
             </Button>
           </div>
         </div>
@@ -243,7 +259,7 @@ function ProfileSetupCard() {
         <div className="flex-1">
           <p className="text-sm font-semibold">Welcome to Punch — let's set up your profile</p>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Your data stays on this device. Add to Home Screen to keep it as your personal account.
+            Saved securely to your Punch account — sign in on any device and it's all there.
           </p>
           <div className="flex flex-wrap gap-2 mt-3">
             <Input
