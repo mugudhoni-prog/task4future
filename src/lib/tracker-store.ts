@@ -205,14 +205,20 @@ export function useTasks() {
       if (!row) return;
       const history = { ...row.history, [dateISO]: !row.history[dateISO] };
       setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, history } : t)));
-      void supabase.from("tasks").update({ history }).eq("id", id);
+      void (async () => {
+        const { error } = await supabase.from("tasks").update({ history }).eq("id", id);
+        if (error) console.error("Failed to save task state:", error.message);
+      })();
     },
     [tasks],
   );
 
   const remove = useCallback((id: string) => {
     setTasks((prev) => prev.filter((t) => t.id !== id));
-    void supabase.from("tasks").delete().eq("id", id);
+    void (async () => {
+      const { error } = await supabase.from("tasks").delete().eq("id", id);
+      if (error) console.error("Failed to delete task:", error.message);
+    })();
   }, []);
 
   return { tasks, loaded, addTask, toggle, remove };
