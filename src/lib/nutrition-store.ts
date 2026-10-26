@@ -715,7 +715,10 @@ export function useFoodEntries() {
 
   const remove = useCallback((id: string) => {
     setEntries((prev) => prev.filter((e) => e.id !== id));
-    void supabase.from("food_entries").delete().eq("id", id);
+    void (async () => {
+      const { error } = await supabase.from("food_entries").delete().eq("id", id);
+      if (error) console.error("Failed to delete food entry:", error.message);
+    })();
   }, []);
 
   return { entries, loaded, add, remove };

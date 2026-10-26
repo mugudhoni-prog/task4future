@@ -253,7 +253,10 @@ export function useActivityEntries() {
 
   const remove = useCallback((id: string) => {
     setEntries((prev) => prev.filter((e) => e.id !== id));
-    void supabase.from("activity_entries").delete().eq("id", id);
+    void (async () => {
+      const { error } = await supabase.from("activity_entries").delete().eq("id", id);
+      if (error) console.error("Failed to delete activity entry:", error.message);
+    })();
   }, []);
 
   return { entries, loaded, add, remove };
