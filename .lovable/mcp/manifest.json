@@ -1,0 +1,273 @@
+{
+  "version": 1,
+  "sdk_version": "3.3.0",
+  "path": "/mcp",
+  "auth": {
+    "type": "oauth",
+    "issuer": "https://jcmywedahzwkkdvnmfuj.supabase.co/auth/v1",
+    "require_oauth_client_claim": true,
+    "accepted_audiences": [
+      "authenticated"
+    ]
+  },
+  "mcp": {
+    "server": {
+      "name": "daily-punch",
+      "version": "0.1.0",
+      "title": "Daily Punch"
+    },
+    "tools": [
+      {
+        "name": "list_tasks",
+        "title": "List tasks",
+        "description": "List the signed-in user's scheduled daily tasks for a date, with their done state. Use this before marking a task so you have task IDs.",
+        "annotations": {
+          "readOnlyHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "properties": {
+            "date": {
+              "description": "Date to list tasks for, as YYYY-MM-DD in the user's local time. Defaults to today (UTC).",
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            }
+          },
+          "additionalProperties": false
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "mark_task",
+        "title": "Mark task done or not done",
+        "description": "Mark one of the user's tasks as done (or undo it) for a specific date. Get the task ID from list_tasks.",
+        "annotations": {
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "properties": {
+            "task_id": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "description": "ID of the task to update, from list_tasks."
+            },
+            "done": {
+              "type": "boolean",
+              "description": "true to mark the task done for that date, false to undo it."
+            },
+            "date": {
+              "description": "Date to mark the task for, as YYYY-MM-DD in the user's local time. Defaults to today (UTC).",
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            }
+          },
+          "required": [
+            "task_id",
+            "done"
+          ],
+          "additionalProperties": false
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "add_task",
+        "title": "Add a task",
+        "description": "Add a daily task to the user's Punch routine. Optionally restrict it to weekdays (0 = Sunday .. 6 = Saturday); empty means every day.",
+        "annotations": {
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "properties": {
+            "title": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "description": "Task title, e.g. 'Gym 5:30 – 7:00'."
+            },
+            "emoji": {
+              "description": "A short emoji shown next to the task. Defaults to ✨.",
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 8
+            },
+            "days": {
+              "description": "Which weekdays the task repeats on (0 = Sunday .. 6 = Saturday). Omit or empty for every day.",
+              "maxItems": 7,
+              "type": "array",
+              "items": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 6
+              }
+            }
+          },
+          "required": [
+            "title"
+          ],
+          "additionalProperties": false
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "log_food",
+        "title": "Log a food entry",
+        "description": "Log food the user ate on a date with its nutrition totals (calories, protein, carbs, fiber, sugar). Values are totals for the amount eaten, not per 100 g.",
+        "annotations": {
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "description": "Food name, e.g. 'Chicken breast (cooked)'."
+            },
+            "calories": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 10000,
+              "description": "Total calories (kcal) for the amount eaten."
+            },
+            "protein": {
+              "description": "Total protein in grams. Defaults to 0.",
+              "type": "number",
+              "minimum": 0,
+              "maximum": 10000
+            },
+            "carbs": {
+              "description": "Total carbohydrates in grams. Defaults to 0.",
+              "type": "number",
+              "minimum": 0,
+              "maximum": 10000
+            },
+            "fiber": {
+              "description": "Total fiber in grams. Defaults to 0.",
+              "type": "number",
+              "minimum": 0,
+              "maximum": 10000
+            },
+            "sugar": {
+              "description": "Total sugar in grams. Defaults to 0.",
+              "type": "number",
+              "minimum": 0,
+              "maximum": 10000
+            },
+            "grams": {
+              "description": "Amount eaten in grams or ml. Defaults to 100.",
+              "type": "number",
+              "minimum": 0,
+              "maximum": 10000
+            },
+            "unit": {
+              "description": "Unit for the amount. Defaults to 'g'.",
+              "type": "string",
+              "enum": [
+                "g",
+                "ml"
+              ]
+            },
+            "emoji": {
+              "description": "A short emoji shown next to the entry. Defaults to 🍽️.",
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 8
+            },
+            "date": {
+              "description": "Date the food was eaten, as YYYY-MM-DD in the user's local time. Defaults to today (UTC).",
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            }
+          },
+          "required": [
+            "name",
+            "calories"
+          ],
+          "additionalProperties": false
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "log_activity",
+        "title": "Log an activity",
+        "description": "Log a workout or activity the user did (name, duration). Calories burned are estimated from the user's profile weight and gender unless you pass calories_burned.",
+        "annotations": {
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "properties": {
+            "activity_name": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "description": "Activity name, e.g. 'Running (10 km/h)' or 'Plank'."
+            },
+            "minutes": {
+              "type": "number",
+              "minimum": 1,
+              "maximum": 1440,
+              "description": "How long the activity lasted, in minutes."
+            },
+            "calories_burned": {
+              "description": "Calories burned. Omit to estimate from the user's profile (MET × weight × time, lower for females).",
+              "type": "number",
+              "minimum": 0,
+              "maximum": 20000
+            },
+            "emoji": {
+              "description": "A short emoji shown next to the entry. Defaults to 🏃.",
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 8
+            },
+            "date": {
+              "description": "Date the activity was done, as YYYY-MM-DD in the user's local time. Defaults to today (UTC).",
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            }
+          },
+          "required": [
+            "activity_name",
+            "minutes"
+          ],
+          "additionalProperties": false
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "daily_summary",
+        "title": "Daily summary",
+        "description": "Get the user's Punch day: tasks done vs scheduled (with missed task titles), nutrition totals vs targets, and calories burned from activity.",
+        "annotations": {
+          "readOnlyHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "properties": {
+            "date": {
+              "description": "Date to summarize, as YYYY-MM-DD in the user's local time. Defaults to today (UTC).",
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            }
+          },
+          "additionalProperties": false
+        },
+        "outputSchema": null
+      }
+    ]
+  }
+}
