@@ -28,6 +28,8 @@ type Mode = "signin" | "signup" | "forgot";
 
 function AuthPage() {
   const router = useRouter();
+  const { next } = Route.useSearch();
+  const returnPath = oauthReturnPath(next);
   const [mode, setMode] = useState<Mode>("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -37,16 +39,17 @@ function AuthPage() {
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
-      if (data.user) navigate({ to: "/", replace: true });
+      if (data.user) router.history.push(returnPath);
     });
-  }, [navigate]);
+  }, [router, returnPath]);
 
   const signInWithProvider = async (provider: "google" | "lovable") => {
     setError("");
     setNotice("");
     setBusy(true);
     const result = await lovable.auth.signInWithOAuth(provider, {
-      redirect_uri: window.location.origin,
+      // Full consent URL so the connection request survives the provider round-trip.
+      redirect_uri: new URL(returnPath, window.location.origin).href,
     });
     setBusy(false);
     if (result.error) setError(result.error.message);
@@ -68,7 +71,7 @@ function AuthPage() {
         setError(e.message);
         return;
       }
-      navigate({ to: "/", replace: true });
+      router.history.push(returnPath);
       return;
     }
     if (mode === "signup") {
@@ -80,7 +83,7 @@ function AuthPage() {
       const { data, error: e } = await supabase.auth.signUp({
         email: email.trim(),
         password,
-        options: { emailRedirectTo: window.location.origin },
+        options: { emailRedirectTo: new URL(returnPath, window.location.origin).href },
       });
       setBusy(false);
       if (e) {
@@ -88,13 +91,20 @@ function AuthPage() {
         return;
       }
       if (data.session) {
-        navigate({ to: "/", replace: true });
+        router.history.push(returnPath);
         return;
       }
       setNotice("Account created! Check your email for a confirmation link to finish signing in.");
       return;
     }
-    // forgot
+    // forgot — keep any connection request alive across the reset flow.
+    if (returnPath !== "/") {
+      try {
+        sessionStorage.setItem("punch-oauth-next", returnPath);
+      } catch {
+        // sessionStorage unavailable — the reset flow just returns to the app.
+      }
+    }
     const { error: e } = await supabase.auth.resetPasswordForEmail(email.trim(), {
       redirectTo: `${window.location.origin}/reset-password`,
     });
