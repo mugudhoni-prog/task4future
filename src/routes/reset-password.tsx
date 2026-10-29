@@ -1,6 +1,7 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { oauthReturnPath } from "@/lib/oauth-return-path";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Flame, Loader2 } from "lucide-react";
@@ -16,7 +17,7 @@ export const Route = createFileRoute("/reset-password")({
 });
 
 function ResetPasswordPage() {
-  const navigate = useNavigate();
+  const router = useRouter();
   const [ready, setReady] = useState(false);
   const [hasSession, setHasSession] = useState(false);
   const [password, setPassword] = useState("");
@@ -53,7 +54,16 @@ function ResetPasswordPage() {
       return;
     }
     setDone(true);
-    setTimeout(() => navigate({ to: "/", replace: true }), 1200);
+    // Return to a preserved connection request (consent flow) if one was stashed.
+    let target = "/";
+    try {
+      const stored = sessionStorage.getItem("punch-oauth-next");
+      if (stored) target = oauthReturnPath(stored);
+      sessionStorage.removeItem("punch-oauth-next");
+    } catch {
+      // sessionStorage unavailable — return to the app.
+    }
+    setTimeout(() => router.history.push(target), 1200);
   };
 
   return (

@@ -19,6 +19,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { NutritionView, NutritionReportSummary } from "@/components/nutrition-view";
 import { ActivityView, ActivityReportSummary } from "@/components/activity-view";
 import { useGoal } from "@/lib/nutrition-store";
+import { useWebMCP } from "use-webmcp-tool";
+import { runWebMCPTool } from "@/lib/webmcp-telemetry";
 
 import {
   Check,
@@ -70,6 +72,114 @@ function PunchApp() {
   const motivation = useMemo(() => getMotivation(), []);
   const weekStats = useMemo(() => computeStats(tasks, 7), [tasks]);
   const monthStats = useMemo(() => computeStats(tasks, 30), [tasks]);
+
+  // Browser-local WebMCP tools: let an agent browser use this screen.
+  useWebMCP({
+    name: "list_day_tasks",
+    description: "List the daily tasks shown on the selected day of Punch, with their done state and IDs.",
+    annotations: { readOnlyHint: true, untrustedContentHint: true },
+    execute: () =>
+      runWebMCPTool("list_day_tasks", () => {
+        if (dayTasks.length === 0) return `No tasks scheduled for ${selectedISO}.`;
+        return dayTasks
+          .map((t) => `${t.id}: ${t.history[selectedISO] ? "[x]" : "[ ]"} ${t.emoji} ${t.title}`)
+          .join("\n");
+      }),
+  });
+
+  useWebMCP({
+    name: "mark_task_done",
+    description: "Mark one of the tasks shown on the selected day as done or not done. Use an ID from list_day_tasks.",
+    annotations: { untrustedContentHint: true },
+    inputSchema: {
+      type: "object",
+      properties: {
+        task_id: { type: "string", description: "Task ID from list_day_tasks." },
+        done: { type: "boolean", description: "true to mark done, false to undo. Defaults to true." },
+      },
+      required: ["task_id"],
+    },
+    execute: ({ task_id, done }: { task_id: string; done?: boolean }) =>
+      runWebMCPTool("mark_task_done", () => {
+        const task = dayTasks.find((t) => t.id === task_id);
+        if (!task) throw new Error("That task is not shown for the selected day. Call list_day_tasks for valid IDs.");
+        const target = done ?? true;
+        const currently = !!task.history[selectedISO];
+        if (currently === target) return `"${task.title}" is already ${target ? "done" : "not done"} for ${selectedISO}.`;
+        toggle(task.id, selectedISO);
+        return `Marked "${task.title}" ${target ? "done" : "not done"} for ${selectedISO}.`;
+      }),
+  });
+
+  useWebMCP({
+    name: "add_task",
+    description: "Add a new daily task to the Punch routine without opening the add-task dialog.",
+    annotations: { untrustedContentHint: true },
+    inputSchema: {
+      type: "object",
+      properties: {
+        title: { type: "string", description: "Task title." },
+        emoji: { type: "string", description: "Optional emoji shown next to the task." },
+        days: {
+          type: "array",
+          items: { type: "integer", minimum: 0, maximum: 6 },
+          description: "Which weekdays it repeats on (0 = Sunday .. 6 = Saturday). Omit for every day.",
+        },
+      },
+      required: ["title"],
+    },
+    execute: ({ title, emoji, days }: { title: string; emoji?: string; days?: number[] }) =>
+      runWebMCPTool("add_task", () => {
+        if (typeof title !== "string" || !title.trim()) throw new Error("Title is required.");
+        const dayList = days ?? [];
+        if (!dayList.every((d) => Number.isInteger(d) && d >= 0 && d <= 6)) {
+          throw new Error("days must be integers 0 (Sunday) to 6 (Saturday).");
+        }
+        addTask(title, emoji?.trim() || "🔥", dayList);
+        return `Added task "${title.trim()}".`;
+      }),
+  });
+
+  useWebMCP({
+    name: "pick_date",
+    description: "Change which day of Punch is shown on screen.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        date: { type: "string", description: "Date to open, as YYYY-MM-DD." },
+      },
+      required: ["date"],
+    },
+    execute: ({ date }: { date: string }) =>
+      runWebMCPTool("pick_date", () => {
+        const input = document.createElement("input");
+        input.type = "date";
+        input.value = date;
+        if (!input.value || !input.checkValidity()) throw new Error("Invalid date; use YYYY-MM-DD.");
+        setSelectedISO(input.value);
+        return `Now showing ${input.value}.`;
+      }),
+  });
+
+  useWebMCP({
+    name: "switch_view",
+    description: "Switch the Punch screen between day, food, activity and reports views.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        view: { type: "string", enum: ["day", "food", "activity", "reports"], description: "Which view to show." },
+      },
+      required: ["view"],
+    },
+    execute: ({ view }: { view: "day" | "food" | "activity" | "reports" }) =>
+      runWebMCPTool("switch_view", () => {
+        if (!["day", "food", "activity", "reports"].includes(view)) {
+          throw new Error("Unknown view; expected day, food, activity, or reports.");
+        }
+        setView(view);
+        return `Now showing the ${view} view.`;
+      }),
+  });
 
   const isToday = selectedISO === todayISO();
   const isFuture = selectedDate > new Date(new Date().setHours(23, 59, 59, 999));
@@ -132,7 +242,7 @@ function PunchApp() {
               size="sm"
               onClick={async () => {
                 await supabase.auth.signOut();
-                navigate({ to: "/auth", replace: true });
+                navigate({ to: "/auth", search: { next: undefined }, replace: true });
               }}
               aria-label="Sign out"
             >

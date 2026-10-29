@@ -3,6 +3,14 @@ import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Flame } from "lucide-react";
 
+type ConsentDetails = Awaited<ReturnType<typeof fetchDetails>>;
+
+async function fetchDetails(authorizationId: string) {
+  const { data, error } = await supabase.auth.oauth.getAuthorizationDetails(authorizationId);
+  if (error) throw error;
+  return data;
+}
+
 export const Route = createFileRoute("/.lovable/oauth/consent")({
   // SSR has no localStorage session and would redirect signed-in users.
   ssr: false,
@@ -17,10 +25,9 @@ export const Route = createFileRoute("/.lovable/oauth/consent")({
   },
   loader: async ({ location }) => {
     const authorizationId = new URLSearchParams(location.search).get("authorization_id")!;
-    const { data, error } = await supabase.auth.oauth.getAuthorizationDetails(authorizationId);
-    if (error) throw error;
-    const immediate = data?.redirect_url ?? data?.redirect_to;
-    if (immediate && !data?.client) throw redirect({ href: immediate });
+    const data = await fetchDetails(authorizationId);
+    // An immediate redirect result (already authorized) carries no client — follow it.
+    if (data && "redirect_url" in data) throw redirect({ href: data.redirect_url });
     return data;
   },
   component: Consent,
@@ -53,16 +60,16 @@ function ConsentShell({ children }: { children: React.ReactNode }) {
 }
 
 function Consent() {
-  const details = Route.useLoaderData();
+  const details = Route.useLoaderData() as NonNullable<ConsentDetails>;
   const { authorization_id } = Route.useSearch();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const clientName = details?.client?.name ?? "an app";
-  const scopes: string[] = typeof details?.scopes === "string" && details.scopes.trim()
-    ? details.scopes.trim().split(/\s+/)
-    : ["openid", "email", "profile"];
-  const redirectUri: string | undefined = details?.client?.redirect_uri;
+  const info = details && "client" in details ? details : null;
+  const clientName = info?.client?.name ?? "an app";
+  const rawScopes: string = info?.scope ?? "";
+  const scopes = rawScopes.trim() ? rawScopes.trim().split(/\s+/) : ["openid", "email", "profile"];
+  const redirectUri: string | undefined = info?.redirect_uri;
 
   async function decide(approve: boolean) {
     setBusy(true);
@@ -74,7 +81,7 @@ function Consent() {
       setError(error.message);
       return;
     }
-    const target = data?.redirect_url ?? data?.redirect_to;
+    const target = data?.redirect_url;
     if (!target) {
       setBusy(false);
       setError("No redirect returned by the authorization server.");
