@@ -242,7 +242,7 @@ function PunchApp() {
               size="sm"
               onClick={async () => {
                 await supabase.auth.signOut();
-                navigate({ to: "/auth", replace: true });
+                navigate({ to: "/auth", search: { next: undefined }, replace: true });
               }}
               aria-label="Sign out"
             >
