@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useSyncExternalStore } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { todayISO, toISO, fromISO, addDays } from "./tracker-store";
 
@@ -559,46 +559,94 @@ function ensureGoalMigrated(userId: string): Promise<void> {
   return p;
 }
 
+// ---- Shared profile state -------------------------------------------------
+// One module-level store so every useGoal() caller sees saves instantly.
+// Previously each component kept its own copy, so saving in one place (e.g. the
+// profile card) did not update the header or the goal dialog until a reload.
+type GoalState = { goal: Goal; loaded: boolean };
+const INITIAL_GOAL_STATE: GoalState = { goal: DEFAULT_GOAL, loaded: false };
+let goalState: GoalState = INITIAL_GOAL_STATE;
+let goalLoadPromise: Promise<void> | null = null;
+let goalDirtyDuringLoad = false;
+let authWatched = false;
+const goalListeners = new Set<() => void>();
+
+function notifyGoal() {
+  goalListeners.forEach((l) => l());
+}
+
+function subscribeGoal(cb: () => void) {
+  goalListeners.add(cb);
+  return () => {
+    goalListeners.delete(cb);
+  };
+}
+
+function loadGoalOnce(): Promise<void> {
+  if (typeof window === "undefined") return Promise.resolve();
+  if (!authWatched) {
+    authWatched = true;
+    supabase.auth.onAuthStateChange((event) => {
+      if (event !== "SIGNED_OUT") return;
+      goalState = INITIAL_GOAL_STATE;
+      goalLoadPromise = null;
+      goalDirtyDuringLoad = false;
+      notifyGoal();
+    });
+  }
+  if (goalLoadPromise) return goalLoadPromise;
+  goalLoadPromise = (async () => {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) {
+      goalState = { ...goalState, loaded: true };
+      notifyGoal();
+      return;
+    }
+    await ensureGoalMigrated(user.id);
+    const { data } = await supabase.from("profiles").select("*").eq("id", user.id).maybeSingle();
+    if (goalDirtyDuringLoad) {
+      // The user already saved while this fetch was in flight — don't clobber it.
+      goalState = { ...goalState, loaded: true };
+    } else if (data) {
+      goalState = { goal: profileToGoal(data as ProfileRow), loaded: true };
+    } else {
+      goalState = { ...goalState, loaded: true };
+    }
+    notifyGoal();
+  })();
+  return goalLoadPromise;
+}
+
 export function useGoal() {
-  const [goal, setGoal] = useState<Goal>(DEFAULT_GOAL);
-  const [loaded, setLoaded] = useState(false);
+  const state = useSyncExternalStore(
+    subscribeGoal,
+    () => goalState,
+    () => INITIAL_GOAL_STATE,
+  );
 
   useEffect(() => {
-    let active = true;
-    (async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) {
-        if (active) setLoaded(true);
-        return;
-      }
-      await ensureGoalMigrated(user.id);
-      const { data } = await supabase.from("profiles").select("*").eq("id", user.id).maybeSingle();
-      if (!active) return;
-      if (data) setGoal(profileToGoal(data as ProfileRow));
-      setLoaded(true);
-    })();
-    return () => {
-      active = false;
-    };
+    void loadGoalOnce();
   }, []);
 
   const update = useCallback((patch: Partial<Goal>) => {
-    setGoal((prev) => {
-      const next = { ...prev, ...patch };
-      void (async () => {
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
-        if (!user) return;
-        await supabase.from("profiles").upsert({ id: user.id, ...goalToProfile(next) });
-      })();
-      return next;
-    });
+    const next = { ...goalState.goal, ...patch };
+    if (!goalState.loaded) goalDirtyDuringLoad = true;
+    goalState = { goal: next, loaded: true };
+    notifyGoal();
+    void (async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) return;
+      const { error } = await supabase.from("profiles").upsert({ id: user.id, ...goalToProfile(next) });
+      if (error) console.error("Failed to save profile:", error.message);
+    })();
+    return next;
   }, []);
 
-  return { goal, loaded, update };
+  return { goal: state.goal, loaded: state.loaded, update };
 }
 
 type FoodRow = {
