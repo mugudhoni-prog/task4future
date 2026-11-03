@@ -352,14 +352,26 @@ function PunchApp() {
 }
 
 function ProfileSetupCard() {
-  const { goal, update } = useGoal();
+  const { goal, loaded, update } = useGoal();
   const [name, setName] = useState(goal.name || "");
   const [age, setAge] = useState<string>(goal.age > 0 ? String(goal.age) : "");
   const [gender, setGender] = useState<"male" | "female">(goal.gender || "male");
+  const [saved, setSaved] = useState(false);
+
+  // Fill the fields once the saved profile arrives from the cloud (first open).
+  useEffect(() => {
+    if (!loaded) return;
+    setName((n) => n || goal.name || "");
+    setAge((a) => a || (goal.age > 0 ? String(goal.age) : ""));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loaded, goal.name, goal.age]);
+
   const save = () => {
     const a = parseInt(age, 10);
     if (!name.trim() || !a || a <= 0) return;
     update({ name: name.trim(), age: a, gender });
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2500);
   };
   return (
     <div className="rounded-2xl border border-primary/30 p-5 relative overflow-hidden"
@@ -391,7 +403,7 @@ function ProfileSetupCard() {
                   key={gd}
                   type="button"
                   onClick={() => setGender(gd)}
-                  className={`px-3 rounded-md text-xs font-medium border capitalize transition-all ${
+                  className={`px-3.5 py-1.5 rounded-md text-xs font-medium border capitalize transition-all ${
                     gender === gd
                       ? "bg-primary text-primary-foreground border-primary"
                       : "border-border hover:border-primary/50"
@@ -401,8 +413,14 @@ function ProfileSetupCard() {
                 </button>
               ))}
             </div>
-            <Button onClick={save} disabled={!name.trim() || !age}>
-              Save
+            <Button onClick={save} disabled={!name.trim() || !age} className="min-w-[104px]">
+              {saved ? (
+                <>
+                  <Check className="size-4 text-success" /> Saved
+                </>
+              ) : (
+                "Save"
+              )}
             </Button>
           </div>
         </div>
