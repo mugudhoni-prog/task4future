@@ -238,10 +238,11 @@ export function tasksForDate(tasks: Task[], date: Date) {
   });
 }
 
-// Tasks that were due yesterday and not done
-export function missedYesterday(tasks: Task[]) {
+// Tasks that were due yesterday and not done. Rest days never count as missed.
+export function missedYesterday(tasks: Task[], restDates?: Set<string>) {
   const y = addDays(new Date(), -1);
   const iso = toISO(y);
+  if (restDates?.has(iso)) return [];
   return tasksForDate(tasks, y).filter((t) => !t.history[iso]);
 }
 
