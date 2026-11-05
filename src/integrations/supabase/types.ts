@@ -55,6 +55,7 @@ export type Database = {
           grams: number
           id: string
           macros: Json
+          meal: string
           name: string
           unit: string
           user_id: string
@@ -66,6 +67,7 @@ export type Database = {
           grams?: number
           id: string
           macros?: Json
+          meal?: string
           name: string
           unit?: string
           user_id: string
@@ -77,8 +79,33 @@ export type Database = {
           grams?: number
           id?: string
           macros?: Json
+          meal?: string
           name?: string
           unit?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      mood_entries: {
+        Row: {
+          created_at: string
+          date_iso: string
+          id: string
+          mood: number
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          date_iso: string
+          id?: string
+          mood: number
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          date_iso?: string
+          id?: string
+          mood?: number
           user_id?: string
         }
         Relationships: []
@@ -89,6 +116,7 @@ export type Database = {
           age: number
           created_at: string
           current_kg: number
+          favorites: Json
           gender: string
           goal_type: string
           height_cm: number
@@ -102,6 +130,7 @@ export type Database = {
           age?: number
           created_at?: string
           current_kg?: number
+          favorites?: Json
           gender?: string
           goal_type?: string
           height_cm?: number
@@ -115,6 +144,7 @@ export type Database = {
           age?: number
           created_at?: string
           current_kg?: number
+          favorites?: Json
           gender?: string
           goal_type?: string
           height_cm?: number
@@ -122,6 +152,51 @@ export type Database = {
           name?: string
           target_kg?: number
           updated_at?: string
+        }
+        Relationships: []
+      }
+      rest_days: {
+        Row: {
+          created_at: string
+          date_iso: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          date_iso: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          date_iso?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      sleep_entries: {
+        Row: {
+          created_at: string
+          date_iso: string
+          hours: number
+          id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          date_iso: string
+          hours: number
+          id?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          date_iso?: string
+          hours?: number
+          id?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -152,6 +227,60 @@ export type Database = {
           id?: string
           title?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      water_entries: {
+        Row: {
+          created_at: string
+          date_iso: string
+          id: string
+          ml: number
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          date_iso: string
+          id?: string
+          ml?: number
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          date_iso?: string
+          id?: string
+          ml?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
+      weight_entries: {
+        Row: {
+          chest_cm: number | null
+          created_at: string
+          date_iso: string
+          id: string
+          user_id: string
+          waist_cm: number | null
+          weight_kg: number
+        }
+        Insert: {
+          chest_cm?: number | null
+          created_at?: string
+          date_iso: string
+          id?: string
+          user_id: string
+          waist_cm?: number | null
+          weight_kg: number
+        }
+        Update: {
+          chest_cm?: number | null
+          created_at?: string
+          date_iso?: string
+          id?: string
+          user_id?: string
+          waist_cm?: number | null
+          weight_kg?: number
         }
         Relationships: []
       }

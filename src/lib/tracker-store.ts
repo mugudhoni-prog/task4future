@@ -238,10 +238,11 @@ export function tasksForDate(tasks: Task[], date: Date) {
   });
 }
 
-// Tasks that were due yesterday and not done
-export function missedYesterday(tasks: Task[]) {
+// Tasks that were due yesterday and not done. Rest days never count as missed.
+export function missedYesterday(tasks: Task[], restDates?: Set<string>) {
   const y = addDays(new Date(), -1);
   const iso = toISO(y);
+  if (restDates?.has(iso)) return [];
   return tasksForDate(tasks, y).filter((t) => !t.history[iso]);
 }
 
@@ -250,7 +251,7 @@ export function getMotivation(seed = 0) {
   return MOTIVATIONAL[i];
 }
 
-export function computeStats(tasks: Task[], days: number) {
+export function computeStats(tasks: Task[], days: number, restDates?: Set<string>) {
   const today = new Date();
   let scheduled = 0;
   let done = 0;
@@ -258,28 +259,44 @@ export function computeStats(tasks: Task[], days: number) {
   for (let i = days - 1; i >= 0; i--) {
     const d = addDays(today, -i);
     const iso = toISO(d);
+    if (restDates?.has(iso)) {
+      perDay.push({ date: iso, done: 0, scheduled: 0 });
+      continue;
+    }
     const dayTasks = tasksForDate(tasks, d);
     const dayDone = dayTasks.filter((t) => t.history[iso]).length;
     scheduled += dayTasks.length;
     done += dayDone;
     perDay.push({ date: iso, done: dayDone, scheduled: dayTasks.length });
   }
-  // streak: consecutive days (ending today or yesterday) with 100% completion
+  // streak: consecutive days (ending today or yesterday) with 100% completion.
+  // Rest days are skipped. One "streak shield" per calendar week: a fully
+  // missed day uses that week's shield instead of breaking the chain.
   let streak = 0;
+  let shieldWeek = -1;
   for (let i = 0; i < 365; i++) {
     const d = addDays(today, -i);
     const iso = toISO(d);
+    if (restDates?.has(iso)) continue;
     const dayTasks = tasksForDate(tasks, d);
     if (dayTasks.length === 0) {
       if (i === 0) continue;
       break;
     }
     const allDone = dayTasks.every((t) => t.history[iso]);
-    if (allDone) streak++;
-    else if (i === 0) {
+    if (allDone) {
+      streak++;
+    } else if (i === 0) {
       // today not fully done yet — don't break
       continue;
-    } else break;
+    } else {
+      const jan1 = new Date(d.getFullYear(), 0, 1);
+      const wk = d.getFullYear() * 100 + Math.floor((+d - +jan1) / 604800000);
+      if (wk !== shieldWeek) {
+        shieldWeek = wk;
+        streak++;
+      } else break;
+    }
   }
   const pct = scheduled === 0 ? 0 : Math.round((done / scheduled) * 100);
   return { scheduled, done, pct, perDay, streak };

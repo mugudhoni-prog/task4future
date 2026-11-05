@@ -8,6 +8,13 @@
       "when": 1792736554940,
       "tag": "0000_auth_accounts_and_tracking_tables",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1793858206503,
+      "tag": "0001_add_health_tracking",
+      "breakpoints": true
     }
   ]
 }
