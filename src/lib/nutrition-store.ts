@@ -386,6 +386,25 @@ export const FOOD_DB: Food[] = [
 ];
 
 
+export type MealType = "breakfast" | "lunch" | "snacks" | "dinner" | "other";
+export const MEAL_LABELS: { id: MealType; label: string; emoji: string }[] = [
+  { id: "breakfast", label: "Breakfast", emoji: "🌅" },
+  { id: "lunch", label: "Lunch", emoji: "☀️" },
+  { id: "snacks", label: "Snacks", emoji: "🍎" },
+  { id: "dinner", label: "Dinner", emoji: "🌙" },
+  { id: "other", label: "Other", emoji: "🍽️" },
+];
+
+/** Guess the meal slot from the time of day the food is being logged. */
+export function guessMeal(at: Date = new Date()): MealType {
+  const h = at.getHours();
+  if (h >= 5 && h < 11) return "breakfast";
+  if (h >= 11 && h < 16) return "lunch";
+  if (h >= 16 && h < 19) return "snacks";
+  if (h >= 19 && h < 23) return "dinner";
+  return "other";
+}
+
 export type FoodEntry = {
   id: string;
   dateISO: string;
@@ -394,6 +413,7 @@ export type FoodEntry = {
   grams: number;
   unit: "g" | "ml";
   macros: Macros; // computed totals for this entry
+  meal: MealType;
   createdAt: string;
 };
 
@@ -408,6 +428,7 @@ export type Goal = {
   targetKg: number;
   goalType: "gain" | "maintain" | "lose";
   activity: number; // 1.2 sedentary..1.725 very active
+  favorites?: string[]; // food names pinned for one-tap logging
 };
 
 const FOOD_KEY = "punch-food-entries-v1";
@@ -509,6 +530,7 @@ type ProfileRow = {
   target_kg: number;
   goal_type: string;
   activity_level: number;
+  favorites: unknown;
 };
 
 function profileToGoal(r: ProfileRow): Goal {
@@ -521,6 +543,7 @@ function profileToGoal(r: ProfileRow): Goal {
     targetKg: Number(r.target_kg ?? 72),
     goalType: (r.goal_type as Goal["goalType"]) ?? "gain",
     activity: Number(r.activity_level ?? 1.55),
+    favorites: Array.isArray(r.favorites) ? (r.favorites as string[]) : [],
   };
 }
 
@@ -534,6 +557,7 @@ function goalToProfile(g: Goal) {
     target_kg: g.targetKg,
     goal_type: g.goalType,
     activity_level: g.activity,
+    favorites: g.favorites ?? [],
     updated_at: new Date().toISOString(),
   };
 }
