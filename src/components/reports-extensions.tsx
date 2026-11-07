@@ -21,7 +21,7 @@ import {
   type Macros,
 } from "@/lib/nutrition-store";
 import { activityStats, useActivityEntries } from "@/lib/activity-store";
-import { toISO, fromISO, addDays, tasksForDate, type Task } from "@/lib/tracker-store";
+import { toISO, fromISO, addDays, tasksForDate, computeStats, type Task } from "@/lib/tracker-store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Download, Flame, Scale, TrendingUp, Trash2 } from "lucide-react";
@@ -39,9 +39,8 @@ export function WeightCard() {
   const [chest, setChest] = useState("");
   const [saved, setSaved] = useState(false);
 
-  if (!loaded) return null;
-
   const sorted = useMemo(() => [...entries].sort((a, b) => a.dateISO.localeCompare(b.dateISO)), [entries]);
+  if (!loaded) return null;
   const latest = sorted[sorted.length - 1];
   const first = sorted[0];
 
@@ -251,7 +250,7 @@ export function ConsistencyHeatMap({ tasks }: { tasks: Task[] }) {
 
 // ---- Weekly review ------------------------------------------------------------
 
-export function WeeklyReviewCard({ tasks, weekStats }: { tasks: Task[]; weekStats: ReturnType<import("@/lib/tracker-store").computeStats> }) {
+export function WeeklyReviewCard({ tasks, weekStats }: { tasks: Task[]; weekStats: ReturnType<typeof computeStats> }) {
   const { goal } = useGoal();
   const { entries: food } = useFoodEntries();
   const { entries: activity } = useActivityEntries();
@@ -411,7 +410,7 @@ function MiniBar({ label, value, target, unit, limit }: { label: string; value: 
 
 // ---- Monthly snapshot export (PNG) ----------------------------------------------
 
-export function MonthlySnapshotButton({ tasks, monthStats }: { tasks: Task[]; monthStats: ReturnType<import("@/lib/tracker-store").computeStats> }) {
+export function MonthlySnapshotButton({ tasks, monthStats }: { tasks: Task[]; monthStats: ReturnType<typeof computeStats> }) {
   const { goal } = useGoal();
   const { entries: food } = useFoodEntries();
   const { entries: water } = useWaterEntries();
