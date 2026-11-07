@@ -292,10 +292,9 @@ export function computeStats(tasks: Task[], days: number, restDates?: Set<string
     } else {
       const jan1 = new Date(d.getFullYear(), 0, 1);
       const wk = d.getFullYear() * 100 + Math.floor((+d - +jan1) / 604800000);
-      if (wk !== shieldWeek) {
-        shieldWeek = wk;
-        streak++;
-      } else break;
+      // shield bridges the gap but doesn't add a day
+      if (wk !== shieldWeek) shieldWeek = wk;
+      else break;
     }
   }
   const pct = scheduled === 0 ? 0 : Math.round((done / scheduled) * 100);

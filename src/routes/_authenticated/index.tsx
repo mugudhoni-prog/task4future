@@ -20,6 +20,15 @@ import { NutritionView, NutritionReportSummary } from "@/components/nutrition-vi
 import { ActivityView, ActivityReportSummary } from "@/components/activity-view";
 import { useGoal } from "@/lib/nutrition-store";
 import { useWebMCP } from "use-webmcp-tool";
+import { useRestDays } from "@/lib/health-store";
+import { VitalsCard, RemindersCard, DayCatchUpCard } from "@/components/vitals-card";
+import {
+  WeightCard,
+  ConsistencyHeatMap,
+  WeeklyReviewCard,
+  MacroSplitChart,
+  MonthlySnapshotButton,
+} from "@/components/reports-extensions";
 import { runWebMCPTool } from "@/lib/webmcp-telemetry";
 
 import {
@@ -68,10 +77,11 @@ function PunchApp() {
 
   const selectedDate = fromISO(selectedISO);
   const dayTasks = useMemo(() => tasksForDate(tasks, selectedDate), [tasks, selectedISO]);
-  const missed = useMemo(() => missedYesterday(tasks), [tasks]);
+  const { restDates } = useRestDays();
+  const missed = useMemo(() => missedYesterday(tasks, restDates), [tasks, restDates]);
   const motivation = useMemo(() => getMotivation(), []);
-  const weekStats = useMemo(() => computeStats(tasks, 7), [tasks]);
-  const monthStats = useMemo(() => computeStats(tasks, 30), [tasks]);
+  const weekStats = useMemo(() => computeStats(tasks, 7, restDates), [tasks, restDates]);
+  const monthStats = useMemo(() => computeStats(tasks, 30, restDates), [tasks, restDates]);
 
   // Browser-local WebMCP tools: let an agent browser use this screen.
   useWebMCP({
@@ -331,6 +341,9 @@ function PunchApp() {
                 tasks={tasks}
               />
               <StreakCard streak={weekStats.streak} />
+              <VitalsCard selectedISO={selectedISO} isFuture={isFuture} />
+              <DayCatchUpCard tasks={tasks} selectedISO={selectedISO} />
+              <RemindersCard tasks={tasks} />
             </aside>
           </div>
         ) : view === "food" ? (
@@ -339,7 +352,14 @@ function PunchApp() {
           <ActivityView />
         ) : (
           <div className="space-y-6">
+            <div className="flex justify-end">
+              <MonthlySnapshotButton tasks={tasks} monthStats={monthStats} />
+            </div>
+            <WeeklyReviewCard tasks={tasks} weekStats={weekStats} />
             <ReportsView weekStats={weekStats} monthStats={monthStats} tasks={tasks} />
+            <ConsistencyHeatMap tasks={tasks} />
+            <WeightCard />
+            <MacroSplitChart />
             <ActivityReportSummary />
             <NutritionReportSummary />
           </div>
@@ -664,6 +684,7 @@ function StreakCard({ streak }: { streak: number }) {
         <div>
           <p className="text-3xl font-bold gradient-text">{streak}</p>
           <p className="text-xs text-muted-foreground uppercase tracking-widest">day streak</p>
+          <p className="text-[10px] text-muted-foreground mt-0.5">🛡️ 1 shield/week · rest days don't count</p>
         </div>
       </div>
     </div>

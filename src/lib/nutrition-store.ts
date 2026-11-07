@@ -682,6 +682,7 @@ type FoodRow = {
   grams: number;
   unit: string;
   macros: Macros;
+  meal?: string;
   created_at: string;
 };
 
@@ -694,6 +695,7 @@ function rowToFoodEntry(r: FoodRow): FoodEntry {
     grams: Number(r.grams),
     unit: r.unit === "ml" ? "ml" : "g",
     macros: r.macros ?? emptyMacros(),
+    meal: (MEAL_LABELS.some((m) => m.id === r.meal) ? r.meal : "other") as MealType,
     createdAt: r.created_at,
   };
 }
@@ -721,6 +723,7 @@ function ensureFoodMigrated(userId: string): Promise<void> {
           grams: e.grams,
           unit: e.unit,
           macros: e.macros,
+          meal: e.meal ?? "other",
           created_at: e.createdAt,
         })),
       );
@@ -780,6 +783,7 @@ export function useFoodEntries() {
         grams: e.grams,
         unit: e.unit,
         macros: e.macros,
+        meal: e.meal,
         created_at: e.createdAt,
       });
     })();

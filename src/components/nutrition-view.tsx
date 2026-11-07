@@ -8,6 +8,9 @@ import {
   nutritionStats,
   todayISO,
   useFoodEntries,
+  guessMeal,
+  MEAL_LABELS,
+  type MealType,
   useGoal,
   type Food,
   type Goal,
@@ -21,7 +24,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Plus, Target, Utensils, Trash2, Settings, Flame } from "lucide-react";
+import { Plus, Target, Utensils, Trash2, Settings, Flame, Star } from "lucide-react";
 
 export function NutritionView() {
   const { goal, loaded: gLoaded, update } = useGoal();
@@ -35,6 +38,13 @@ export function NutritionView() {
   const todayList = useMemo(() => entriesForDate(entries, today), [entries, today]);
   const week = useMemo(() => nutritionStats(entries, 7), [entries]);
   const month = useMemo(() => nutritionStats(entries, 30), [entries]);
+  const favorites = goal.favorites ?? [];
+  const favFoods = useMemo(
+    () => favorites.map((n) => FOOD_DB.find((f) => f.name === n)).filter((f): f is Food => !!f),
+    [favorites],
+  );
+  const toggleFav = (name: string) =>
+    update({ favorites: favorites.includes(name) ? favorites.filter((n) => n !== name) : [...favorites, name] });
 
   if (!gLoaded || !eLoaded) return null;
 
@@ -83,35 +93,75 @@ export function NutritionView() {
             <Plus className="size-4" /> Log food
           </Button>
         </div>
+        {favFoods.length > 0 && (
+          <div className="mb-4">
+            <p className="text-[11px] uppercase tracking-widest text-muted-foreground mb-2 flex items-center gap-1">
+              <Star className="size-3" /> Quick log
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {favFoods.map((f) => (
+                <button
+                  key={f.name}
+                  onClick={() =>
+                    add({
+                      dateISO: today,
+                      name: f.name,
+                      emoji: f.emoji,
+                      grams: f.serving,
+                      unit: f.unit || "g",
+                      macros: computeMacros(f, f.serving),
+                      meal: guessMeal(),
+                    })
+                  }
+                  className="text-xs px-2.5 py-1.5 rounded-full border border-border hover:border-primary/60 transition-all"
+                >
+                  {f.emoji} {f.name} · {f.serving}{f.unit || "g"}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
         {todayList.length === 0 ? (
           <p className="text-sm text-muted-foreground py-6 text-center">
             No food logged yet. Tap "Log food" to start.
           </p>
         ) : (
-          <div className="space-y-2">
-            {todayList.map((e) => (
-              <div
-                key={e.id}
-                className="flex items-center gap-3 p-3 rounded-xl border border-border/60"
-              >
-                <span className="text-2xl">{e.emoji}</span>
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium truncate">{e.name}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {e.grams}
-                    {e.unit} · {e.macros.calories} kcal · P {e.macros.protein}g · C{" "}
-                    {e.macros.carbs}g · F {e.macros.fiber}g · S {e.macros.sugar}g
+          <div className="space-y-4">
+            {MEAL_LABELS.map((m) => {
+              const items = todayList.filter((e) => e.meal === m.id);
+              if (items.length === 0) return null;
+              const kcal = items.reduce((a, b) => a + b.macros.calories, 0);
+              return (
+                <div key={m.id}>
+                  <p className="text-xs uppercase tracking-widest text-muted-foreground mb-1.5 flex justify-between">
+                    <span>{m.emoji} {m.label}</span>
+                    <span>{Math.round(kcal)} kcal</span>
                   </p>
+                  <div className="space-y-2">
+                    {items.map((e) => (
+                      <div key={e.id} className="flex items-center gap-3 p-3 rounded-xl border border-border/60">
+                        <span className="text-2xl">{e.emoji}</span>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium truncate">{e.name}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {e.grams}
+                            {e.unit} · {e.macros.calories} kcal · P {e.macros.protein}g · C{" "}
+                            {e.macros.carbs}g · F {e.macros.fiber}g · S {e.macros.sugar}g
+                          </p>
+                        </div>
+                        <button
+                          onClick={() => remove(e.id)}
+                          className="text-muted-foreground hover:text-destructive p-2"
+                          aria-label="Remove entry"
+                        >
+                          <Trash2 className="size-4" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-                <button
-                  onClick={() => remove(e.id)}
-                  className="text-muted-foreground hover:text-destructive p-2"
-                  aria-label="Remove entry"
-                >
-                  <Trash2 className="size-4" />
-                </button>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
@@ -149,7 +199,7 @@ export function NutritionView() {
         </div>
       </div>
 
-      <AddFoodDialog open={openAdd} onOpenChange={setOpenAdd} onAdd={add} />
+      <AddFoodDialog open={openAdd} onOpenChange={setOpenAdd} onAdd={add} favorites={favorites} onToggleFav={toggleFav} />
       <GoalDialog open={openGoal} onOpenChange={setOpenGoal} goal={goal} onSave={update} />
     </div>
   );
@@ -230,8 +280,12 @@ function AddFoodDialog({
   open,
   onOpenChange,
   onAdd,
+  favorites,
+  onToggleFav,
 }: {
   open: boolean;
+  favorites: string[];
+  onToggleFav: (name: string) => void;
   onOpenChange: (b: boolean) => void;
   onAdd: (e: {
     dateISO: string;
@@ -240,17 +294,22 @@ function AddFoodDialog({
     grams: number;
     unit: "g" | "ml";
     macros: Macros;
+    meal: MealType;
   }) => void;
 }) {
   const [query, setQuery] = useState("");
+  const [meal, setMeal] = useState<MealType>(guessMeal());
   const [picked, setPicked] = useState<Food | null>(null);
   const [qty, setQty] = useState<number>(100);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return FOOD_DB.slice(0, 12);
+    if (!q) {
+      const favs = FOOD_DB.filter((f) => favorites.includes(f.name));
+      return [...favs, ...FOOD_DB.filter((f) => !favorites.includes(f.name)).slice(0, 12)];
+    }
     return FOOD_DB.filter((f) => f.name.toLowerCase().includes(q)).slice(0, 20);
-  }, [query]);
+  }, [query, favorites]);
 
   const macros = picked ? computeMacros(picked, qty) : null;
 
@@ -263,6 +322,7 @@ function AddFoodDialog({
       grams: qty,
       unit: picked.unit || "g",
       macros: computeMacros(picked, qty),
+      meal,
     });
     setPicked(null);
     setQty(100);
@@ -302,13 +362,14 @@ function AddFoodDialog({
                 </p>
               ) : (
                 filtered.map((f) => (
+                  <div key={f.name} className="flex items-center gap-1">
                   <button
-                    key={f.name}
                     onClick={() => {
                       setPicked(f);
                       setQty(f.serving);
+                      setMeal(guessMeal());
                     }}
-                    className="w-full flex items-center gap-3 p-3 rounded-lg border border-border/60 hover:border-primary/60 text-left transition-all"
+                    className="flex-1 min-w-0 flex items-center gap-3 p-3 rounded-lg border border-border/60 hover:border-primary/60 text-left transition-all"
                   >
                     <span className="text-2xl">{f.emoji}</span>
                     <div className="flex-1 min-w-0">
@@ -319,6 +380,14 @@ function AddFoodDialog({
                       </p>
                     </div>
                   </button>
+                  <button
+                    onClick={() => onToggleFav(f.name)}
+                    aria-label={favorites.includes(f.name) ? "Unpin from quick log" : "Pin to quick log"}
+                    className="p-2.5 rounded-lg border border-border/60 hover:border-primary/60"
+                  >
+                    <Star className={`size-4 ${favorites.includes(f.name) ? "fill-primary text-primary" : "text-muted-foreground"}`} />
+                  </button>
+                  </div>
                 ))
               )}
             </div>
@@ -337,6 +406,22 @@ function AddFoodDialog({
               <Button variant="ghost" size="sm" onClick={() => setPicked(null)}>
                 Change
               </Button>
+            </div>
+            <div>
+              <label className="text-xs uppercase tracking-widest text-muted-foreground">Meal</label>
+              <div className="grid grid-cols-5 gap-1.5 mt-1.5">
+                {MEAL_LABELS.map((m) => (
+                  <button
+                    key={m.id}
+                    onClick={() => setMeal(m.id)}
+                    className={`py-1.5 rounded-md text-[11px] border transition-all ${
+                      meal === m.id ? "bg-primary text-primary-foreground border-primary" : "border-border hover:border-primary/50"
+                    }`}
+                  >
+                    {m.emoji} {m.label}
+                  </button>
+                ))}
+              </div>
             </div>
             <div>
               <label className="text-xs uppercase tracking-widest text-muted-foreground">

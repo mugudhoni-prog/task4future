@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useSyncExternalStore } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { todayISO } from "./tracker-store";
 
@@ -194,53 +194,75 @@ export function moodForDate(entries: MoodEntry[], dateISO: string): number | nul
 }
 
 // ---- Rest days --------------------------------------------------------------
+// Shared module store so toggling a rest day updates streaks/stats everywhere.
 
-type RestRow = { id: string; user_id: string; date_iso: string };
+type RestRow = { date_iso: string };
+type RestState = { dates: Set<string>; loaded: boolean };
+const REST_INIT: RestState = { dates: new Set(), loaded: false };
+let restState: RestState = REST_INIT;
+let restLoad: Promise<void> | null = null;
+let restAuthWatched = false;
+const restListeners = new Set<() => void>();
+const notifyRest = () => restListeners.forEach((l) => l());
+
+function loadRestOnce() {
+  if (typeof window === "undefined") return;
+  if (!restAuthWatched) {
+    restAuthWatched = true;
+    supabase.auth.onAuthStateChange((event) => {
+      if (event !== "SIGNED_OUT") return;
+      restState = REST_INIT;
+      restLoad = null;
+      notifyRest();
+    });
+  }
+  if (restLoad) return;
+  restLoad = (async () => {
+    const uid = await currentUser();
+    if (!uid) {
+      restState = { ...restState, loaded: true };
+      notifyRest();
+      return;
+    }
+    const { data } = await supabase.from("rest_days").select("date_iso").eq("user_id", uid);
+    restState = { dates: new Set(((data ?? []) as RestRow[]).map((r) => r.date_iso)), loaded: true };
+    notifyRest();
+  })();
+}
 
 export function useRestDays() {
-  const [dates, setDates] = useState<Set<string>>(new Set());
-  const [loaded, setLoaded] = useState(false);
-
+  const state = useSyncExternalStore(
+    (cb) => {
+      restListeners.add(cb);
+      return () => {
+        restListeners.delete(cb);
+      };
+    },
+    () => restState,
+    () => REST_INIT,
+  );
   useEffect(() => {
-    let active = true;
-    (async () => {
-      const uid = await currentUser();
-      if (!uid) {
-        if (active) setLoaded(true);
-        return;
-      }
-      const { data } = await supabase.from("rest_days").select("date_iso").eq("user_id", uid);
-      if (!active) return;
-      setDates(new Set(((data ?? []) as RestRow[]).map((r) => r.date_iso)));
-      setLoaded(true);
-    })();
-    return () => {
-      active = false;
-    };
+    loadRestOnce();
   }, []);
 
   const toggle = useCallback((dateISO: string) => {
-    setDates((prev) => {
-      const next = new Set(prev);
-      const wasRest = next.has(dateISO);
-      if (wasRest) next.delete(dateISO);
-      else next.add(dateISO);
-      void (async () => {
-        const uid = await currentUser();
-        if (!uid) return;
-        if (wasRest) {
-          const { error } = await supabase.from("rest_days").delete().eq("user_id", uid).eq("date_iso", dateISO);
-          if (error) console.error("Failed to remove rest day:", error.message);
-        } else {
-          const { error } = await supabase.from("rest_days").insert({ user_id: uid, date_iso: dateISO });
-          if (error) console.error("Failed to save rest day:", error.message);
-        }
-      })();
-      return next;
-    });
+    const next = new Set(restState.dates);
+    const wasRest = next.has(dateISO);
+    if (wasRest) next.delete(dateISO);
+    else next.add(dateISO);
+    restState = { ...restState, dates: next };
+    notifyRest();
+    void (async () => {
+      const uid = await currentUser();
+      if (!uid) return;
+      const { error } = wasRest
+        ? await supabase.from("rest_days").delete().eq("user_id", uid).eq("date_iso", dateISO)
+        : await supabase.from("rest_days").insert({ user_id: uid, date_iso: dateISO });
+      if (error) console.error("Failed to save rest day:", error.message);
+    })();
   }, []);
 
-  return { restDates: dates, loaded, toggle };
+  return { restDates: state.dates, loaded: state.loaded, toggle };
 }
 
 // ---- Weight / body measurements --------------------------------------------
