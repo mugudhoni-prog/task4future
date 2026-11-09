@@ -15,6 +15,13 @@
       "when": 1793858206503,
       "tag": "0001_add_health_tracking",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1794245461489,
+      "tag": "0002_add_activity_workout_details",
+      "breakpoints": true
     }
   ]
 }

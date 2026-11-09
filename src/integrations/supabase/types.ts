@@ -20,6 +20,7 @@ export type Database = {
           calories_burned: number
           created_at: string
           date_iso: string
+          details: Json
           emoji: string | null
           id: string
           minutes: number
@@ -30,6 +31,7 @@ export type Database = {
           calories_burned?: number
           created_at?: string
           date_iso: string
+          details?: Json
           emoji?: string | null
           id: string
           minutes?: number
@@ -40,6 +42,7 @@ export type Database = {
           calories_burned?: number
           created_at?: string
           date_iso?: string
+          details?: Json
           emoji?: string | null
           id?: string
           minutes?: number
