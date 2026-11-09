@@ -1,6 +1,13 @@
 import { useEffect, useState, useCallback } from "react";
 import { todayISO, toISO, addDays } from "./tracker-store";
 import { supabase } from "@/integrations/supabase/client";
+import { computeCaloriesBurned } from "./activity-calculations";
+
+export { computeCaloriesBurned } from "./activity-calculations";
+
+export type ActivityDetails =
+  | { kind: "strength"; weightKg: number; repsPerSet: number; sets: number }
+  | { kind: "custom-walk"; speedKmh: number; distanceKm: number; inclineDegrees: number };
 
 export type Activity = {
   name: string;
@@ -15,6 +22,7 @@ export const ACTIVITY_DB: Activity[] = [
   { name: "Walking (casual, 3 km/h)", emoji: "🚶", met: 2.8, category: "cardio" },
   { name: "Walking (brisk, 5 km/h)", emoji: "🚶", met: 3.8, category: "cardio" },
   { name: "Walking (fast, 6.5 km/h)", emoji: "🚶‍♂️", met: 5.0, category: "cardio" },
+  { name: "Custom walk", emoji: "🚶", met: 3.8, category: "cardio" },
   { name: "Hiking", emoji: "🥾", met: 6.0, category: "cardio" },
   { name: "Jogging (8 km/h)", emoji: "🏃", met: 7.0, category: "cardio" },
   { name: "Running (10 km/h)", emoji: "🏃‍♂️", met: 9.8, category: "cardio" },
@@ -113,6 +121,7 @@ export type ActivityEntry = {
   emoji: string;
   minutes: number;
   caloriesBurned: number;
+  details?: ActivityDetails;
   createdAt: string;
 };
 
@@ -151,6 +160,7 @@ type ActivityRow = {
   emoji: string | null;
   minutes: number;
   calories_burned: number;
+  details?: ActivityDetails | null;
   created_at: string;
 };
 
@@ -162,6 +172,7 @@ function rowToEntry(r: ActivityRow): ActivityEntry {
     emoji: r.emoji ?? "🏃",
     minutes: Number(r.minutes),
     caloriesBurned: Number(r.calories_burned),
+    details: r.details ?? undefined,
     createdAt: r.created_at,
   };
 }
@@ -188,6 +199,7 @@ function ensureActivityMigrated(userId: string): Promise<void> {
           emoji: e.emoji,
           minutes: e.minutes,
           calories_burned: e.caloriesBurned,
+          details: e.details ?? {},
           created_at: e.createdAt,
         })),
       );
@@ -246,6 +258,7 @@ export function useActivityEntries() {
         emoji: e.emoji,
         minutes: e.minutes,
         calories_burned: e.caloriesBurned,
+        details: e.details ?? {},
         created_at: e.createdAt,
       });
     })();

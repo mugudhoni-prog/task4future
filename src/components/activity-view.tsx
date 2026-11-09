@@ -4,11 +4,13 @@ import {
   activityEntriesForDate,
   activityStats,
   computeCaloriesBurned,
+  type ActivityDetails,
   dailyBurn,
   todayISO,
   useActivityEntries,
   type Activity,
 } from "@/lib/activity-store";
+import { computeCustomWalk, computeStrengthCaloriesBurned } from "@/lib/activity-calculations";
 import { useGoal } from "@/lib/nutrition-store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -123,14 +125,14 @@ export function ActivityView() {
         onOpenChange={setOpenAdd}
         weightKg={goal.currentKg}
         gender={goal.gender}
-        onAdd={(a, minutes) => {
-          const kcal = computeCaloriesBurned(a.met, minutes, goal.currentKg, goal.gender);
+        onAdd={(a, minutes, kcal, details) => {
           add({
             dateISO: today,
             activityName: a.name,
             emoji: a.emoji,
             minutes,
             caloriesBurned: kcal,
+            details,
           });
         }}
       />
@@ -150,12 +152,18 @@ function AddActivityDialog({
   onOpenChange: (b: boolean) => void;
   weightKg: number;
   gender: "male" | "female";
-  onAdd: (a: Activity, minutes: number) => void;
+  onAdd: (a: Activity, minutes: number, calories: number, details?: ActivityDetails) => void;
 }) {
   const [q, setQ] = useState("");
   const [cat, setCat] = useState<Activity["category"] | "all">("all");
   const [selected, setSelected] = useState<Activity | null>(null);
   const [minutes, setMinutes] = useState(30);
+  const [weightKg, setWeightKg] = useState(0);
+  const [repsPerSet, setRepsPerSet] = useState(10);
+  const [sets, setSets] = useState(3);
+  const [walkSpeed, setWalkSpeed] = useState(5);
+  const [walkDistance, setWalkDistance] = useState(3);
+  const [walkIncline, setWalkIncline] = useState(0);
 
   const filtered = useMemo(() => {
     const ql = q.trim().toLowerCase();
@@ -164,16 +172,37 @@ function AddActivityDialog({
     ).slice(0, 80);
   }, [q, cat]);
 
+  const isCustomWalk = selected?.name === "Custom walk";
+  const isStrength = selected?.category === "gym";
+  const walkEstimate = isCustomWalk
+    ? computeCustomWalk(walkSpeed, walkDistance, walkIncline, weightKg, gender)
+    : null;
+  const activeMinutes = walkEstimate ? Math.max(1, Math.round(walkEstimate.minutes)) : minutes;
+  const details: ActivityDetails | undefined = isCustomWalk
+    ? { kind: "custom-walk", speedKmh: walkSpeed, distanceKm: walkDistance, inclineDegrees: walkIncline }
+    : isStrength
+      ? { kind: "strength", weightKg, repsPerSet, sets }
+      : undefined;
   const preview = selected
-    ? computeCaloriesBurned(selected.met, minutes, weightKg, gender)
+    ? isCustomWalk
+      ? walkEstimate?.caloriesBurned ?? 0
+      : isStrength
+        ? computeStrengthCaloriesBurned(selected.met, minutes, weightKg || 65, gender, weightKg, repsPerSet, sets)
+        : computeCaloriesBurned(selected.met, minutes, weightKg || 65, gender)
     : 0;
 
 
   const submit = () => {
-    if (!selected || minutes <= 0) return;
-    onAdd(selected, minutes);
+    if (!selected || (isCustomWalk ? walkDistance <= 0 || walkSpeed <= 0 : minutes <= 0)) return;
+    onAdd(selected, activeMinutes, preview, details);
     setSelected(null);
     setMinutes(30);
+    setWeightKg(0);
+    setRepsPerSet(10);
+    setSets(3);
+    setWalkSpeed(5);
+    setWalkDistance(3);
+    setWalkIncline(0);
     setQ("");
     onOpenChange(false);
   };
@@ -228,6 +257,20 @@ function AddActivityDialog({
               </div>
               <Button variant="ghost" size="sm" onClick={() => setSelected(null)}>Change</Button>
             </div>
+            {isCustomWalk ? (
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <label className="text-xs text-muted-foreground">Speed (km/h)
+                  <Input type="number" min={0.1} step={0.1} value={walkSpeed} onChange={(e) => setWalkSpeed(Math.max(0.1, Number(e.target.value) || 0.1))} className="mt-1.5" />
+                </label>
+                <label className="text-xs text-muted-foreground">Distance (km)
+                  <Input type="number" min={0.1} step={0.1} value={walkDistance} onChange={(e) => setWalkDistance(Math.max(0.1, Number(e.target.value) || 0.1))} className="mt-1.5" />
+                </label>
+                <label className="text-xs text-muted-foreground">Incline (degrees)
+                  <Input type="number" min={0} max={20} step={0.5} value={walkIncline} onChange={(e) => setWalkIncline(Math.min(20, Math.max(0, Number(e.target.value) || 0)))} className="mt-1.5" />
+                </label>
+                <p className="text-xs text-muted-foreground sm:col-span-3">Estimated time: {activeMinutes} min</p>
+              </div>
+            ) : (
             <div>
               <label className="text-xs uppercase tracking-widest text-muted-foreground">Duration (minutes)</label>
               <Input type="number" min={1} value={minutes} onChange={(e) => setMinutes(Math.max(1, Number(e.target.value) || 0))} className="mt-1.5" />
@@ -240,12 +283,26 @@ function AddActivityDialog({
                 ))}
               </div>
             </div>
+            )}
+            {isStrength && (
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <label className="text-xs text-muted-foreground">Weight (kg)
+                  <Input type="number" min={0} step={0.5} value={weightKg} onChange={(e) => setWeightKg(Math.max(0, Number(e.target.value) || 0))} className="mt-1.5" />
+                </label>
+                <label className="text-xs text-muted-foreground">Reps per set
+                  <Input type="number" min={1} value={repsPerSet} onChange={(e) => setRepsPerSet(Math.max(1, Number(e.target.value) || 1))} className="mt-1.5" />
+                </label>
+                <label className="text-xs text-muted-foreground">Sets
+                  <Input type="number" min={1} value={sets} onChange={(e) => setSets(Math.max(1, Number(e.target.value) || 1))} className="mt-1.5" />
+                </label>
+              </div>
+            )}
             <div className="rounded-xl p-4 border border-primary/30" style={{ background: "var(--gradient-hero)" }}>
               <div className="flex items-center gap-3">
                 <Flame className="size-6 text-primary" />
                 <div>
                   <p className="text-2xl font-bold gradient-text">{preview} kcal</p>
-                  <p className="text-xs text-muted-foreground">at {weightKg}kg · {minutes} min</p>
+                  <p className="text-xs text-muted-foreground">{activeMinutes} min · {isStrength ? `${sets} sets × ${repsPerSet} reps · ${weightKg} kg` : isCustomWalk ? `${walkDistance} km · ${walkSpeed} km/h · ${walkIncline}° incline` : `at ${weightKg} kg`}</p>
                 </div>
               </div>
             </div>
