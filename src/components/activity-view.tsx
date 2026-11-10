@@ -127,7 +127,7 @@ export function ActivityView() {
       <AddActivityDialog
         open={openAdd}
         onOpenChange={setOpenAdd}
-        weightKg={goal.currentKg}
+        bodyWeightKg={goal.currentKg}
         gender={goal.gender}
         onAdd={(a, minutes, kcal, details) => {
           add({

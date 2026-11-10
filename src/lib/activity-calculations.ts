@@ -21,7 +21,8 @@ export function computeStrengthCaloriesBurned(
   sets: number,
 ) {
   const base = computeCaloriesBurned(met, minutes, bodyWeightKg, gender);
-  const liftedVolume = Math.max(0, resistanceWeightKg) * Math.max(0, repsPerSet) * Math.max(0, sets);
+  const effectiveLoadKg = Math.max(0, resistanceWeightKg) + bodyWeightKg * 0.25;
+  const liftedVolume = effectiveLoadKg * Math.max(0, repsPerSet) * Math.max(0, sets);
   const workloadRatio = liftedVolume / Math.max(1, bodyWeightKg) / 10;
   const effortMultiplier = 1 + Math.min(0.4, Math.log1p(workloadRatio) * 0.15);
   return Math.round(base * effortMultiplier);
