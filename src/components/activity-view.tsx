@@ -127,7 +127,7 @@ export function ActivityView() {
       <AddActivityDialog
         open={openAdd}
         onOpenChange={setOpenAdd}
-        weightKg={goal.currentKg}
+        bodyWeightKg={goal.currentKg}
         gender={goal.gender}
         onAdd={(a, minutes, kcal, details) => {
           add({
@@ -241,7 +241,7 @@ function AddActivityDialog({
                     <p className="text-[11px] text-muted-foreground">MET {a.met} · {a.category}</p>
                   </div>
                   <span className="text-xs text-muted-foreground">
-                    ~{computeCaloriesBurned(a.met, 30, weightKg, gender)} kcal/30m
+                    ~{computeCaloriesBurned(a.met, 30, bodyWeightKg, gender)} kcal/30m
                   </span>
 
                 </button>
